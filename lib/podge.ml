@@ -92,9 +92,15 @@ module Math = struct
     in
     loop from to_
 
+  let validate_prob p =
+    if p < 0.0 || p > 1.0
+    then raise (Invalid_argument "Not a valid Probability, \
+                                  needs to be between 0 and 1")
+
   (** Computes the entropy from a list of probabilities *)
   let entropy probs =
     List.fold_left begin fun accum p ->
+      validate_prob p;
       accum +. (p *. log2 (1.0 /. p))
     end
       0.0
@@ -105,9 +111,7 @@ module Math = struct
       message with. The less likely an event is to occur, the more
       information we can say actually is contained in the event *)
   let self_information p =
-    if p < 0.0 || p > 1.0
-    then raise (Invalid_argument "Not a valid Probability, \
-                                  needs to be between 0 and 1");
+    validate_prob p;
     log2 (1.0 /. p)
 
 end
@@ -141,6 +145,15 @@ module List = struct
 end
 
 module Html5 = struct
+
+  let show_tag e =
+    Html5.P.print_list print_string [e]
+
+  let element_to_string e =
+    let cont = Buffer.create 1024 in
+    let func = Buffer.add_string cont in
+    Html5.P.print_list func [e];
+    Buffer.contents cont
 
 end
 

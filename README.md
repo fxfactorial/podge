@@ -14,6 +14,16 @@ name as the package, for example `Podge.Yojson` contains functions for
 working with the `yojson` package. While `Podge.Math` contains various
 mathematical and statistical functions.
 
+Probably the easiest way to learn what's provided by Podge is to look
+at it via `ocp-browser`, provided by the [ocp-index](https://github.com/OCamlPro/ocp-index) package, have
+`lambda-term` installed before you install `ocp-index` so that
+`ocp-browser` is installed.
+
+![img](./avail.png)
+
+Hopefully the functions are named in such a way that you can infer the
+semantics/intended usage.
+
 # Yet another Standard Library Replacement?
 
 No, this isn't yet another attempt at a standard library
@@ -22,6 +32,9 @@ had scattered all around my hard-drive ranging from stuff that I've
 written, to useful StackOverflow answers, to IRC chats, general
 googling and Computer Science courses.
 
-Perhaps there will be
-something of use in here as well for you. (I hope that some things
-here will help newcomers to the language as well)
+I focus on functions, not new data structures or improvements of the
+StdLib provided data structures or functions.
+
+Perhaps there will be something of use in here as well for you. (I
+hope that some things here will help newcomers to the language as
+well)
