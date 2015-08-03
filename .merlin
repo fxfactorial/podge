@@ -1,4 +1,4 @@
 B _build/lib
 
-PKG podge
+PKG unix yojson cohttp.lwt tyxml js_of_ocaml
 EXT js

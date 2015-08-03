@@ -1,5 +1,7 @@
 (** Shortcuts and helpers for common tasks in OCaml *)
 
+module L = List
+
 module Math = struct
 
   type 'a nums = Int : int nums | Float : float nums
@@ -15,7 +17,7 @@ module Math = struct
       | Float ->
         (Array.init n (fun _ -> Random.float max_float) : t array)
 
-  let derivative ~f ~argument =
+  let derivative ~f argument =
     let eps = sqrt epsilon_float in
     ((f (argument +. eps)) -. (f (argument -. eps))) /. (2. *. eps)
 
@@ -84,7 +86,7 @@ module Math = struct
 
   let pi = 4.0 *. atan 1.0
 
-  let range ?(chunk=1) ~from ~to_ =
+  let range ?(chunk=1) ~from to_ =
     let rec loop lower upper =
       if lower > upper then []
       else
@@ -118,6 +120,10 @@ end
 
 module Yojson = struct
 
+  let show_pretty s =
+    Yojson.Basic.from_string s
+    |> Yojson.Basic.pretty_to_string
+    |> print_endline
 
 end
 
@@ -126,12 +132,12 @@ module List = struct
 
   (** Evaluate f on each item of the given list and check if all
       evaluated to true *)
-  let all ~f ~on =
+  let all ~f on =
     List.map f on |> List.fold_left (&&) true
 
   (** Evaluate f on each item of the given list and check if any
       evaluated to false *)
-  let any ~f ~on =
+  let any ~f on =
     List.map f on |> List.fold_left (||) false
 
   let unique l =
@@ -163,6 +169,8 @@ end
 
 module Unix = struct
 
+  type exn += Error of string
+
   let read_process_output p =
     let ic = Unix.open_process_in p in
     let all_input = ref [] in
@@ -176,6 +184,7 @@ module Unix = struct
       close_in ic;
       !all_input
 
+  (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
     let termio = Unix.tcgetattr Unix.stdin in
     let () =
@@ -185,11 +194,33 @@ module Unix = struct
     Unix.tcsetattr Unix.stdin Unix.TCSADRAIN termio;
     res
 
+  let time_now () =
+    let localtime = Unix.localtime (Unix.time ()) in
+    Printf.sprintf "[%02u:%02u:%02u]"
+      localtime.Unix.tm_hour
+      localtime.Unix.tm_min
+      localtime.Unix.tm_sec
+
+  let daemonize () =
+  match Unix.fork () with
+  | x when x < 0 -> raise (Error "Couldn't fork correctly")
+  | x when x > 0 -> exit (-1)
+  | 0 -> match Unix.setsid () with
+         | x when x < 0 -> raise (Error "Issue with setsid")
+         | x -> match Unix.fork () with
+                | x when x < 0 -> raise (Error "Issie with second fork")
+                | x when x > 0 -> exit (-1)
+                | x ->
+                  Unix.umask 0 |>
+                  fun _ ->
+                  Unix.chdir "/";
+                  L.iter Unix.close [Unix.stdin; Unix.stdout]
+
 end
 
 module Analyze = struct
 
-  let time_it f x =
+  let time_it ~f x =
     let t = Sys.time() in
     let fx = f x in
     Printf.printf "Execution time: %fs\n" (Sys.time() -. t);
@@ -214,5 +245,14 @@ end
 
 module Printf = struct
   let printfn str = Printf.kprintf print_endline str
+
+end
+
+module Debugging = struct
+
+  let show_callstack n =
+    Printexc.get_callstack n
+    |> Printexc.raw_backtrace_to_string
+    |> print_endline
 
 end
