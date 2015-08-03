@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 33358d4125c14f914cdffd60e18cf685)
+version = "0.1"
+description = "Shortcuts and helpers for common tasks in OCaml ecosystem"
+requires = "js_of_ocaml"
+archive(byte) = "podge.cma"
+archive(byte, plugin) = "podge.cma"
+archive(native) = "podge.cmxa"
+archive(native, plugin) = "podge.cmxs"
+exists_if = "podge.cma"
+# OASIS_STOP
+

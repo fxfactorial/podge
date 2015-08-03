@@ -20,5 +20,5 @@ Library "podge"
   BuildTools:ocamlbuild
   install:true
   BuildDepends:
-    yojson, cohttp.lwt, tyxml, js_of_ocaml
+    yojson, cohttp.lwt, tyxml, js_of_ocaml, unix
   Modules:Podge

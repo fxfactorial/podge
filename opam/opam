@@ -5,9 +5,8 @@ maintainer: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
 authors: [ "Edgar Aroutiounian <edgar.factorial@gmail.com>" ]
 license: "GPL-3.0"
 homepage: "http://hyegar.com"
-bug-reports: "http://github.com/fxfactorial/podge"
+bug-reports: "http://hyegar.com"
 build: [
-  ["oasis" "setup"]
   ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
   ["ocaml" "setup.ml" "-build"]
 ]
@@ -17,15 +16,14 @@ remove: [
     "%{etc}%/build_gar_site"]
 ]
 build-test: [
-  ["oasis" "setup"]
   ["ocaml" "setup.ml" "-configure" "--enable-tests"]
   ["ocaml" "setup.ml" "-build"]
   ["ocaml" "setup.ml" "-test"]
 ]
 depends: [
+  "base-unix"
   "cohttp"
   "js_of_ocaml"
-  "oasis" {build & >= "0.4"}
   "ocamlfind" {build}
   "tyxml"
   "yojson"
