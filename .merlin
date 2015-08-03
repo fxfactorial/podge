@@ -1,0 +1,4 @@
+B _build/lib
+
+PKG tyxml js_of_ocaml cohttp cohttp.lwt yojson
+EXT js

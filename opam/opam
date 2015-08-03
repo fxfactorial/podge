@@ -1,0 +1,33 @@
+opam-version: "1.2"
+name: "build_gar_site"
+version: "0.1"
+maintainer: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
+authors: [ "Edgar Aroutiounian <edgar.factorial@gmail.com>" ]
+license: "GPL-3.0"
+homepage: "http://hyegar.com"
+bug-reports: "http://github.com/fxfactorial/podge"
+build: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-build"]
+]
+install: ["ocaml" "setup.ml" "-install"]
+remove: [
+  ["ocaml" "%{etc}%/build_gar_site/_oasis_remove_.ml"
+    "%{etc}%/build_gar_site"]
+]
+build-test: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--enable-tests"]
+  ["ocaml" "setup.ml" "-build"]
+  ["ocaml" "setup.ml" "-test"]
+]
+depends: [
+  "cohttp"
+  "js_of_ocaml"
+  "oasis" {build & >= "0.4"}
+  "ocamlfind" {build}
+  "tyxml"
+  "yojson"
+]
+available: [ ocaml-version >= "4.02.3" ]
