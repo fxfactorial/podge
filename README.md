@@ -19,7 +19,7 @@ at it via `ocp-browser`, provided by the [ocp-index](https://github.com/OCamlPro
 `lambda-term` installed before you install `ocp-index` so that
 `ocp-browser` is installed.
 
-![img](./avail.png)
+![img](./podge_listing.gif)
 
 Hopefully the functions are named in such a way that you can infer the
 semantics/intended usage.

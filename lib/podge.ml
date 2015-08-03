@@ -1,7 +1,5 @@
 (** Shortcuts and helpers for common tasks in OCaml *)
 
-module L = List
-
 module Math = struct
 
   type 'a nums = Int : int nums | Float : float nums
@@ -128,27 +126,6 @@ module Yojson = struct
 end
 
 
-module List = struct
-
-  (** Evaluate f on each item of the given list and check if all
-      evaluated to true *)
-  let all ~f on =
-    List.map f on |> List.fold_left (&&) true
-
-  (** Evaluate f on each item of the given list and check if any
-      evaluated to false *)
-  let any ~f on =
-    List.map f on |> List.fold_left (||) false
-
-  let unique l =
-    List.fold_left begin fun a e ->
-      if List.mem e a
-      then a
-      else e :: a
-    end
-      []
-      l
-end
 
 module Html5 = struct
 
@@ -202,19 +179,19 @@ module Unix = struct
       localtime.Unix.tm_sec
 
   let daemonize () =
-  match Unix.fork () with
-  | x when x < 0 -> raise (Error "Couldn't fork correctly")
-  | x when x > 0 -> exit (-1)
-  | 0 -> match Unix.setsid () with
-         | x when x < 0 -> raise (Error "Issue with setsid")
-         | x -> match Unix.fork () with
-                | x when x < 0 -> raise (Error "Issie with second fork")
-                | x when x > 0 -> exit (-1)
-                | x ->
-                  Unix.umask 0 |>
-                  fun _ ->
-                  Unix.chdir "/";
-                  L.iter Unix.close [Unix.stdin; Unix.stdout]
+    match Unix.fork () with
+    | x when x < 0 -> raise (Error "Couldn't fork correctly")
+    | x when x > 0 -> exit (-1)
+    | 0 -> match Unix.setsid () with
+      | x when x < 0 -> raise (Error "Issue with setsid")
+      | x -> match Unix.fork () with
+        | x when x < 0 -> raise (Error "Issie with second fork")
+        | x when x > 0 -> exit (-1)
+        | x ->
+          Unix.umask 0 |>
+          fun _ ->
+          Unix.chdir "/";
+          List.iter Unix.close [Unix.stdin; Unix.stdout]
 
 end
 
@@ -223,8 +200,7 @@ module Analyze = struct
   let time_it ~f x =
     let t = Sys.time() in
     let fx = f x in
-    Printf.printf "Execution time: %fs\n" (Sys.time() -. t);
-    fx
+    (Printf.sprintf "Execution time: %fs\n" (Sys.time() -. t), fx)
 
   (* TODO Add a doc string explaing meaning *)
   let ratio_pair time_double time =
@@ -255,4 +231,26 @@ module Debugging = struct
     |> Printexc.raw_backtrace_to_string
     |> print_endline
 
+end
+
+module List = struct
+
+  (** Evaluate f on each item of the given list and check if all
+      evaluated to true *)
+  let all ~f on =
+    List.map f on |> List.fold_left (&&) true
+
+  (** Evaluate f on each item of the given list and check if any
+      evaluated to false *)
+  let any ~f on =
+    List.map f on |> List.fold_left (||) false
+
+  let unique l =
+    List.fold_left begin fun a e ->
+      if List.mem e a
+      then a
+      else e :: a
+    end
+      []
+      l
 end
