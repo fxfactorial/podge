@@ -1,5 +1,4 @@
 (** Shortcuts and helpers for common tasks in OCaml *)
-open Printf
 
 module Math = struct
 
@@ -20,7 +19,7 @@ module Math = struct
     let eps = sqrt epsilon_float in
     ((f (argument +. eps)) -. (f (argument -. eps))) /. (2. *. eps)
 
-  let linear_regression xs ys =
+  let linear_regression ~xs ~ys =
     let sum xs = (Array.fold_right
                     (fun value running -> value +. running) xs 0.0) in
     let mean xs = (sum xs) /. (float_of_int (Array.length xs)) in
@@ -52,12 +51,12 @@ module Math = struct
       b *. x +. a in
     line
 
-  let rec pow a = function
+  let rec pow ~base = function
     | 0 -> 1
-    | 1 -> a
+    | 1 -> base
     | n ->
-      let b = pow a (n / 2) in
-      b * b * (if n mod 2 = 0 then 1 else a)
+      let b = pow base (n / 2) in
+      b * b * (if n mod 2 = 0 then 1 else base)
 
   let log2 x = (log x ) /. (log 2.)
 
@@ -85,13 +84,31 @@ module Math = struct
 
   let pi = 4.0 *. atan 1.0
 
-  let ranges ?(chunk=1) lower upper =
+  let range ?(chunk=1) ~from ~to_ =
     let rec loop lower upper =
       if lower > upper then []
       else
         (lower + chunk) :: loop (lower + chunk) upper
     in
-    loop lower upper
+    loop from to_
+
+  (** Computes the entropy from a list of probabilities *)
+  let entropy probs =
+    List.fold_left begin fun accum p ->
+      accum +. (p *. log2 (1.0 /. p))
+    end
+      0.0
+      probs
+
+  (** Represents the number of bits of information contained in this
+      message, roughly how many number of bits we should encode this
+      message with. The less likely an event is to occur, the more
+      information we can say actually is contained in the event *)
+  let self_information p =
+    if p < 0.0 || p > 1.0
+    then raise (Invalid_argument "Not a valid Probability, \
+                                  needs to be between 0 and 1");
+    log2 (1.0 /. p)
 
 end
 
@@ -103,16 +120,24 @@ end
 
 module List = struct
 
-  let all l = List.fold_left (&&) true l
+  (** Evaluate f on each item of the given list and check if all
+      evaluated to true *)
+  let all ~f ~on =
+    List.map f on |> List.fold_left (&&) true
 
-  let any l = List.fold_left (||) false l
+  (** Evaluate f on each item of the given list and check if any
+      evaluated to false *)
+  let any ~f ~on =
+    List.map f on |> List.fold_left (||) false
 
-  let setify l =
-    List.fold_left (fun a e ->
-        if List.mem e a
-        then a
-        else e :: a) [] l
-
+  let unique l =
+    List.fold_left begin fun a e ->
+      if List.mem e a
+      then a
+      else e :: a
+    end
+      []
+      l
 end
 
 module Html5 = struct
@@ -146,6 +171,7 @@ module Unix = struct
     let res = input_char stdin in
     Unix.tcsetattr Unix.stdin Unix.TCSADRAIN termio;
     res
+
 end
 
 module Analyze = struct
@@ -166,9 +192,14 @@ end
 module Cohttp = struct
 
   let show_headers hdrs = Cohttp.Header.iter begin fun key values ->
-      sprintf "%s" (sprintf "%s %s" key (String.concat "" values))
+      Printf.sprintf "%s" (Printf.sprintf "%s %s" key (String.concat "" values))
       |> print_endline
     end
       hdrs
+
+end
+
+module Printf = struct
+  let printfn str = Printf.kprintf print_endline str
 
 end
