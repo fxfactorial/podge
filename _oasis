@@ -22,3 +22,14 @@ Library "podge"
   BuildDepends:
     yojson, cohttp.lwt, tyxml, js_of_ocaml, unix
   Modules:Podge
+
+Executable do_test
+  Path: tests
+  MainIs: do_test.ml
+  BuildTools:ocamlbuild
+  BuildDepends: podge
+  Install: false
+
+Test run_test
+  Command: $do_test
+  TestTools: do_test

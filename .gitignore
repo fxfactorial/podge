@@ -3,5 +3,10 @@ _build
 *.byte
 *.docdir
 
+tests/*.cmi
+tests/*.cmt
+tests/*.cmo
+tests/*.cma
+
 setup.data
 setup.log
