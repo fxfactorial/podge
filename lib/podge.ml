@@ -124,10 +124,31 @@ end
 
 module Yojson = struct
 
-  let show_pretty s =
+  type did_update = [`Updated | `No_update]
+
+  let show_pretty_of_string s =
     Yojson.Basic.from_string s
     |> Yojson.Basic.pretty_to_string
     |> print_endline
+
+  let show_pretty_of_in_mem j =
+    Yojson.Basic.pretty_to_string j |> print_endline
+
+  let show_pretty_of_file f =
+    Yojson.Basic.from_file f
+    |> Yojson.Basic.pretty_to_string
+    |> print_endline
+
+  let update key value j : (did_update * Yojson.Basic.json) =
+    let updated = ref false in
+    let as_obj = Yojson.Basic.Util.to_assoc j in
+    let g = List.map begin function
+        | (this_key, inner) when this_key = key -> updated := true; (this_key, value)
+        | otherwise -> otherwise
+      end
+        as_obj
+    in
+    if !updated then (`Updated, `Assoc g) else (`No_update, `Assoc g)
 
 end
 
@@ -168,9 +189,7 @@ module Unix = struct
   (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
     let termio = Unix.tcgetattr Unix.stdin in
-    let () =
-      Unix.tcsetattr Unix.stdin Unix.TCSADRAIN
-        { termio with Unix.c_icanon = false } in
+    Unix.tcsetattr Unix.stdin Unix.TCSADRAIN { termio with Unix.c_icanon = false };
     let res = input_char stdin in
     Unix.tcsetattr Unix.stdin Unix.TCSADRAIN termio;
     res
@@ -224,6 +243,7 @@ module Cohttp = struct
 end
 
 module Printf = struct
+
   let printfn str = Printf.kprintf print_endline str
 
 end
