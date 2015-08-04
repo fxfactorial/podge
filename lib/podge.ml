@@ -114,6 +114,12 @@ module Math = struct
     validate_prob p;
     log2 (1.0 /. p)
 
+  let rec distance l r =
+  match l, r with
+  | a_val_l :: rest_l, a_val_r :: rest_r ->
+    (a_val_l -. a_val_r) ** 2.0 +. distance rest_l rest_r
+  | _ -> 0.0
+
 end
 
 module Yojson = struct
@@ -125,14 +131,12 @@ module Yojson = struct
 
 end
 
-
-
 module Html5 = struct
 
   let show_tag e =
     Html5.P.print_list print_string [e]
 
-  let element_to_string e =
+  let to_string e =
     let cont = Buffer.create 1024 in
     let func = Buffer.add_string cont in
     Html5.P.print_list func [e];
@@ -253,4 +257,20 @@ module List = struct
     end
       []
       l
+
+  let group_by ls =
+    let ls' =
+      List.fold_left
+        (fun acc (day1,x1) ->
+           match acc with
+             [] -> [day1,[x1]]
+           | (day2,ls2) :: acctl ->
+             if day1=day2
+             then (day1,x1::ls2) :: acctl
+             else (day1,[x1]) :: acc)
+        []
+        ls
+    in
+    List.rev ls'
+
 end
