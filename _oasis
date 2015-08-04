@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.02.3
+OCamlVersion: >= 4.02.2
 Name:        podge
 Version:     0.1
 Maintainers: Edgar Aroutiounian
@@ -20,7 +20,7 @@ Library "podge"
   BuildTools:ocamlbuild
   install:true
   BuildDepends:
-    yojson, cohttp.lwt, tyxml, js_of_ocaml, unix
+    yojson, cohttp, tyxml, unix
   Modules:Podge
 
 # Executable do_test

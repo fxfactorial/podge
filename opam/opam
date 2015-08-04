@@ -24,10 +24,9 @@ build-test: [
 depends: [
   "base-unix"
   "cohttp"
-  "js_of_ocaml"
   "oasis" {build & >= "0.4"}
   "ocamlfind" {build}
   "tyxml"
   "yojson"
 ]
-available: [ ocaml-version >= "4.02.3" ]
+available: [ ocaml-version >= "4.02.2" ]

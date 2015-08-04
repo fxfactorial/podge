@@ -165,10 +165,6 @@ module Html5 = struct
 
 end
 
-module Js = struct
-
-end
-
 module Unix = struct
 
   type exn += Error of string
