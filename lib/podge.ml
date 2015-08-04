@@ -234,6 +234,11 @@ end
 
 module Cohttp = struct
 
+  let did_request_succeed resp =
+    Cohttp.Response.status resp
+    |> Cohttp.Code.code_of_status
+    |> Cohttp.Code.is_success
+
   let show_headers hdrs = Cohttp.Header.iter begin fun key values ->
       Printf.sprintf "%s" (Printf.sprintf "%s %s" key (String.concat "" values))
       |> print_endline
