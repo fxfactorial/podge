@@ -1,4 +1,4 @@
-(** Needs to be compiled because of js_of_ocaml *)
+#require "podge"
 
 let () =
-  Podge.Unix.read_process_output "uname -a" |> List.iter print_endline
+  print_endline (Podge.Web.get Sys.argv.(1))

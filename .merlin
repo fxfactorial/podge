@@ -1,4 +1,4 @@
 B _build/lib
 
-PKG unix yojson cohttp.lwt tyxml js_of_ocaml
+PKG unix yojson cohttp tyxml uri re
 EXT js

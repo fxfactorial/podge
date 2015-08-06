@@ -11,3 +11,4 @@ tests/*.cma
 setup.data
 setup.log
 README.org
+podge.*

@@ -1,18 +1,21 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.02.2
+OCamlVersion: >= 4.02.3
 Name:        podge
-Version:     0.1
+Version:     0.3
 Maintainers: Edgar Aroutiounian
 Homepage: http://hyegar.com
 Synopsis:    Shortcuts and helpers for common tasks in OCaml ecosystem
 Authors:     Edgar Aroutiounian <edgar.factorial@gmail.com>
-License:     GPL-3.0
+License:     BSD-3-clause
 Plugins:     META (0.4), DevFiles (0.4)
 Description:
   If you're doing any modern OCaml then you're doubtlessly annoyed
   by the state of libraries and committing to one of the big ones
-  can be restricting. Podge is a single modules containing specialized
-  modules for their respectives usages for seemginly common tasks.
+  can be restricting. Podge is a single module containing specialized
+  modules for their respectives usages for seemingly common tasks.
+  Podge is especially useful for Hackathons when you want to do a simple
+  HTTP get request or want to manipulate JSON.
+
 AlphaFeatures: ocamlbuild_more_args
 
 Library "podge"
@@ -20,7 +23,7 @@ Library "podge"
   BuildTools:ocamlbuild
   install:true
   BuildDepends:
-    yojson, cohttp, tyxml, unix
+    yojson, cohttp, tyxml, unix, re
   Modules:Podge
 
 # Executable do_test

@@ -1,10 +1,13 @@
-**Podge** is a centralization of helper functions and shortcuts that 
-I have frequently found myself writing over and over again in
-[OCaml](http://www.ocaml.org). It doesn't depend on Jane Street's [Core](https://github.com/janestreet/core) library, nor does it
-depend on [Batteries](https://github.com/ocaml-batteries-team/batteries-included). Rather Podge picks among various existing smaller
-packages and provides helper functions for common tasks related to
-usages of those libraries. Podge also provides some extra modules,
-like the Math module. 
+**Podge** is a centralization of helper functions and shortcuts that I
+have frequently found myself writing over and over again in [OCaml](http://www.ocaml.org). It
+doesn't depend on Jane Street's [Core](https://github.com/janestreet/core), [Batteries](https://github.com/ocaml-batteries-team/batteries-included) or even [Lwt](http://ocsigen.org/lwt/). Rather
+Podge picks among various existing smaller packages that you probably
+already have installed and provides helper functions for common tasks
+related to usages of those libraries. Podge also provides some extra
+modules like the Math module.
+
+**Podge** is well suited for hackathons, especially when you just want
+to do a quick HTTP get request for JSON data and play with the JSON.
 
 # Overview of Modules
 
@@ -32,9 +35,9 @@ had scattered all around my hard-drive ranging from stuff that I've
 written, to useful StackOverflow answers, to IRC chats, general
 googling and Computer Science courses.
 
-I focus on functions, not new data structures or improvements of the
-StdLib provided data structures or functions.
+I focus on functionality, not new data structures or improvements of the
+StdLib provided data structures, functions.
 
-Perhaps there will be something of use in here as well for you. (I
+Perhaps there will be something of use in here as well for you. I
 hope that some things here will help newcomers to the language as
-well)
+well or at least help with quick Python like prototyping.
