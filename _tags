@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5f7e240d2b2c059c99ee2df824c629b8)
+# DO NOT EDIT (digest: d7068528a562227b0db0bf8b81d9ce26)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,8 +16,8 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library podge
 "lib/podge.cmxs": use_podge
-<lib/*.ml{,i,y}>: package(cohttp.lwt)
-<lib/*.ml{,i,y}>: package(js_of_ocaml)
+<lib/*.ml{,i,y}>: package(cohttp)
+<lib/*.ml{,i,y}>: package(re.pcre)
 <lib/*.ml{,i,y}>: package(tyxml)
 <lib/*.ml{,i,y}>: package(unix)
 <lib/*.ml{,i,y}>: package(yojson)
