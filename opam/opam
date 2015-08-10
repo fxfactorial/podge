@@ -26,8 +26,8 @@ depends: [
   "cohttp"
   "oasis" {build & >= "0.4"}
   "ocamlfind" {build}
-  "re"
+  "re.pcre"
   "tyxml"
   "yojson"
 ]
-available: [ ocaml-version >= "4.02.3" ]
+available: [ ocaml-version >= "4.02.1" ]

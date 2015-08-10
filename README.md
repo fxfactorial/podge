@@ -7,7 +7,38 @@ related to usages of those libraries. Podge also provides some extra
 modules like the Math module.
 
 **Podge** is well suited for hackathons, especially when you just want
-to do a quick HTTP get request for JSON data and play with the JSON.
+to do a quick HTTP get request for JSON data and subsequently play
+with the JSON.
+
+For example, here is a self-contained demonstration program that does
+a `HTTP` get request
+
+```ocaml
+(* This file is named show_query.ml *)
+#require "podge"
+
+let () =
+  Podge.Web.get Sys.argv.(1)
+  |> Podge.Yojson.show_pretty_of_in_mem
+```
+
+And you can run it from the command line with: 
+```shell
+$ utop show_query.ml http://google.com
+{
+  "headers": [
+    "HTTP/1.1 301 Moved Permanently", "Location: http://www.google.com/",
+    "Content-Type: text/html; charset=UTF-8",
+    "Date: Mon, 10 Aug 2015 19:20:56 GMT",
+    "Expires: Wed, 09 Sep 2015 19:20:56 GMT",
+    "Cache-Control: public, max-age=2592000", "Server: gws",
+    "Content-Length: 219", "X-XSS-Protection: 1; mode=block",
+    "X-Frame-Options: SAMEORIGIN", "Alternate-Protocol: 80:quic,p=0"
+  ],
+  "body":
+    "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF=\"http://www.google.com/\">here</A>.\r\n</BODY></HTML>\r\n"
+}
+```
 
 # Overview of Modules
 
@@ -23,6 +54,7 @@ at it via `ocp-browser`, provided by the [ocp-index](https://github.com/OCamlPro
 `ocp-browser` is installed.
 
 ![img](./podge_listing.gif)
+
 
 Hopefully the functions are named in such a way that you can infer the
 semantics/intended usage.
