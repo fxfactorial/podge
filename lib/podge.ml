@@ -2,6 +2,8 @@
 
 module U = Unix
 module P = Printf
+module L = List
+module Y = Yojson.Basic
 
 module Math = struct
 
@@ -354,8 +356,10 @@ end
 module Web = struct
 
   type exn += Not_valid_uri of string
+  type exn += Bad_http_result of string
+  type json = Y.json
 
-  let get url =
+  let get url : Y.json =
     let as_uri = Uri.of_string url in
     match (as_uri |> Uri.host, as_uri |> Uri.path_and_query) with
     | (None, _) -> raise (Not_valid_uri "Check your input, don't seem right")
@@ -369,15 +373,32 @@ module Web = struct
         P.sprintf "GET %s HTTP/1.1\r\nHOST:%s\r\n\r\n" p host |> Bytes.of_string
       in
       let len = Bytes.length send_me in
-      let len_sent = U.send a_socket send_me 0 len [] in
-      let rec get_all () =
-        match U.recv a_socket a_buffer 0 1024 [] with
-        | 0 | -1 -> ()
-        | n ->
-          Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);
-          get_all ()
+      let _ = U.send a_socket send_me 0 len [] in
+      let rec pull_all () =
+        U.select [a_socket] [] [] 0.75 |>
+        function
+        | read_me :: _, _, _ ->
+          begin
+            match U.recv a_socket a_buffer 0 1024 [] with
+            | 0 | -1 -> ()
+            | n ->
+              Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);
+              pull_all ()
+          end
+        | _ ->
+          (* this is wrong *)
+          ()
       in
-      get_all ();
-      Buffer.to_bytes final_result |> Bytes.to_string
+      pull_all ();
+      let raw_request = Buffer.to_bytes final_result |> Bytes.to_string in
+      match Re_pcre.split ~rex:(Re_pcre.regexp "\r\n\r\n") raw_request with
+      | headers :: body :: [] ->
+        let headers_l : Y.json list =
+          Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") headers
+          |> L.filter (function Re_pcre.Text s -> true | _ -> false)
+          |> L.map (fun (Re_pcre.Text s) -> `String s)
+        in
+        `Assoc [("headers", `List headers_l); ("body", `String body)]
+      | _ -> raise (Bad_http_result "Couldn't split body from headers")
 
 end

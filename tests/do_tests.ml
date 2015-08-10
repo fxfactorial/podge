@@ -1,4 +1,5 @@
 #require "podge"
 
 let () =
-  print_endline (Podge.Web.get Sys.argv.(1))
+  Podge.Web.get Sys.argv.(1)
+  |> Podge.Yojson.show_pretty_of_in_mem

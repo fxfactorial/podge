@@ -6,4 +6,4 @@ restricting. Podge is a single module containing specialized modules
 for their respectives usages for seemingly common tasks.
 
 Podge is especially useful for Hackathons or data exploration in utop
-i.e. you just want to do a simple HTTP get request or manipulate JSON.
+i.e. you just want to do a simple HTTP get/put request or manipulate JSON.
