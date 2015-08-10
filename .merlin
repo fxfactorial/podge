@@ -1,4 +1,4 @@
 B _build/lib
 
-PKG unix yojson cohttp tyxml uri re
+PKG unix yojson cohttp tyxml uri re ezxmlm
 EXT js

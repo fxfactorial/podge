@@ -448,3 +448,17 @@ end = struct
     pull_all a_socket |> examine_result
 
 end
+
+module Xml = struct
+
+  open Ezxmlm
+
+  let query_node_of_file ~key path =
+    let (_, xml) = from_channel (open_in path) in
+    member key xml |> data_to_string
+
+  let query_node_of_string ~key str =
+    let (_, xml) = from_string str in
+    member key xml |> data_to_string
+
+end

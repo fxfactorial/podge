@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 92608eb99f5a50eac3f1528eef9b794d)
+# DO NOT EDIT (digest: 9f194cc5a8aaf2acf744fba690780b16)
 version = "0.3"
 description = "Shortcuts and helpers for common tasks in OCaml ecosystem"
-requires = "yojson cohttp tyxml unix re.pcre"
+requires = "yojson cohttp tyxml unix re.pcre ezxmlm"
 archive(byte) = "podge.cma"
 archive(byte, plugin) = "podge.cma"
 archive(native) = "podge.cmxa"
