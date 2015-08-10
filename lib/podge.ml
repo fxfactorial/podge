@@ -42,11 +42,11 @@ module Math = struct
       let sum_sq_v_y = ref 0.0 in
       let zipped = List.combine (Array.to_list xs) (Array.to_list ys) in
       List.iter begin fun (i_x, i_y) ->
-          let var_x = i_x -. mean_x in
-          let var_y = i_y -. mean_y in
-          sum_xy := !sum_xy +. (var_x *. var_y);
-          sum_sq_v_x := !sum_sq_v_x +. (var_x ** 2.0);
-          sum_sq_v_y := !sum_sq_v_y +. (var_y ** 2.0)
+        let var_x = i_x -. mean_x in
+        let var_y = i_y -. mean_y in
+        sum_xy := !sum_xy +. (var_x *. var_y);
+        sum_sq_v_x := !sum_sq_v_x +. (var_x ** 2.0);
+        sum_sq_v_y := !sum_sq_v_y +. (var_y ** 2.0)
       end
         zipped;
       !sum_xy /. (sqrt (!sum_sq_v_x *. !sum_sq_v_y)) in
@@ -130,7 +130,7 @@ module Math = struct
       (a_val_l -. a_val_r) ** 2.0 +. distance rest_l rest_r
     | _ -> 0.0
 
-  let init_with_f f n =
+  let init_with_f ~f n =
     let rec init_aux n accum =
       if n <= 0 then accum else init_aux (n - 1) (f (n - 1) :: accum)
     in
@@ -163,11 +163,11 @@ module Yojson = struct
     |> Yojson.Basic.pretty_to_string
     |> print_endline
 
-  let update ~key ~value j : (did_update * Yojson.Basic.json) =
+  let update ~key ~new_value j : (did_update * Yojson.Basic.json) =
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
     let g = List.map begin function
-        | (this_key, inner) when this_key = key -> updated := true; (this_key, value)
+        | (this_key, inner) when this_key = key -> updated := true; (this_key, new_value)
         | otherwise -> otherwise
       end
         as_obj
@@ -306,13 +306,7 @@ module List = struct
     List.map f on |> List.fold_left (||) false
 
   let unique l =
-    List.fold_left begin fun a e ->
-      if List.mem e a
-      then a
-      else e :: a
-    end
-      []
-      l
+    List.fold_left (fun a e -> if List.mem e a then a else e :: a) [] l
 
   let group_by ls =
     let ls' = List.fold_left begin fun accum (this_key, x1) ->
@@ -327,14 +321,14 @@ module List = struct
     in
     List.rev ls'
 
-  let take n xs =
+  let take ~n xs =
     let rec aux n xs accum =
       if n <= 0 || xs = [] then List.rev accum
       else aux (n - 1) (List.tl xs) (List.hd xs :: accum)
     in
     aux n xs []
 
-  let rec drop n xs =
+  let rec drop ~n xs =
     if n <= 0 || xs = [] then xs
     else drop (n - 1) (List.tl xs)
 
@@ -351,54 +345,106 @@ module List = struct
     in
     helper [] l
 
+  let filter_map ~f ~g l =
+    List.fold_left (fun accum value -> if f value then g value :: accum else accum) [] l
+
 end
 
-module Web = struct
+module Web : sig
 
   type exn += Not_valid_uri of string
   type exn += Bad_http_result of string
-  type json = Y.json
 
-  let get url : Y.json =
+  (** Produces a socket ready for HTTP requests and returns the
+      socket, host and querystring *)
+  val socket_for_url : string -> U.file_descr * string * string
+
+  (** Simple HTTP based get request, produces headers and body in json
+      structure with keys "headers" and "body" *)
+  val get : string -> Y.json
+
+  (** Simple HTTP based put requests: takes url and payload and
+      produces headers and body in json structure with keys "headers" and
+      "body"*)
+  val put : url:string -> payload:string -> Y.json
+
+end = struct
+
+  type exn += Not_valid_uri of string
+  type exn += Bad_http_result of string
+
+  (** Produces a socket ready for HTTP requests and returns the
+      socket, host and querystring *)
+  let socket_for_url url =
     let as_uri = Uri.of_string url in
     match (as_uri |> Uri.host, as_uri |> Uri.path_and_query) with
     | (None, _) -> raise (Not_valid_uri "Check your input, don't seem right")
-    | (Some host, p) ->
+    | (Some host, p_query) ->
       let this_inet_addr = (U.gethostbyname host).U.h_addr_list.(0) in
       let a_socket = U.socket U.PF_INET U.SOCK_STREAM 0 in
       U.connect a_socket (U.ADDR_INET (this_inet_addr, 80));
-      let final_result = Buffer.create 4096 in
-      let a_buffer = Bytes.create 1024 in
-      let send_me =
-        P.sprintf "GET %s HTTP/1.1\r\nHOST:%s\r\n\r\n" p host |> Bytes.of_string
+      (a_socket, host, p_query)
+
+  let pull_all a_socket =
+    let final_result = Buffer.create 4096 in
+    let a_buffer = Bytes.create 1024 in
+    let rec produce_data () =
+      U.select [a_socket] [] [] 0.75 |>
+      function
+      | read_me :: _, _, _ ->
+        begin
+          match U.recv a_socket a_buffer 0 1024 [] with
+          | 0 | -1 -> ()
+          | n ->
+            Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);
+            produce_data ()
+        end
+      | _ -> ()
+    in
+    produce_data ();
+    Buffer.to_bytes final_result |> Bytes.to_string
+
+  let examine_result raw_result : Y.json =
+    match Re_pcre.split ~rex:(Re_pcre.regexp "\r\n\r\n") raw_result with
+    | headers :: body :: [] ->
+      let headers_l : Y.json list =
+        Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") headers
+        |> L.filter (function Re_pcre.Text s -> true | _ -> false)
+        |> L.map (fun (Re_pcre.Text s) -> `String s)
       in
-      let len = Bytes.length send_me in
-      let _ = U.send a_socket send_me 0 len [] in
-      let rec pull_all () =
-        U.select [a_socket] [] [] 0.75 |>
-        function
-        | read_me :: _, _, _ ->
-          begin
-            match U.recv a_socket a_buffer 0 1024 [] with
-            | 0 | -1 -> ()
-            | n ->
-              Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);
-              pull_all ()
-          end
-        | _ ->
-          (* this is wrong *)
-          ()
-      in
-      pull_all ();
-      let raw_request = Buffer.to_bytes final_result |> Bytes.to_string in
-      match Re_pcre.split ~rex:(Re_pcre.regexp "\r\n\r\n") raw_request with
-      | headers :: body :: [] ->
-        let headers_l : Y.json list =
-          Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") headers
-          |> L.filter (function Re_pcre.Text s -> true | _ -> false)
-          |> L.map (fun (Re_pcre.Text s) -> `String s)
-        in
-        `Assoc [("headers", `List headers_l); ("body", `String body)]
-      | _ -> raise (Bad_http_result "Couldn't split body from headers")
+      `Assoc [("headers", `List headers_l); ("body", `String body)]
+    | otherwise ->
+      raise (Bad_http_result "Either no data or \
+                              couldn't split headers from body")
+
+  (** Simple HTTP based get request, produces headers and body in json
+      structure with keys "headers" and "body" *)
+  let get url : Y.json =
+    let (a_socket, host, p) = socket_for_url url in
+    let send_me =
+      P.sprintf "GET %s HTTP/1.1\r\nHOST: %s\r\n\r\n" p host |> Bytes.of_string
+    in
+    let len = Bytes.length send_me in
+    let _ = U.send a_socket send_me 0 len [] in
+    pull_all a_socket |> examine_result
+
+  (** Simple HTTP based put requests: takes url and payload and
+      produces headers and body in json structure with keys "headers" and
+      "body"*)
+  let put ~url ~payload : Y.json =
+    let (a_socket, _, path_query) = socket_for_url url in
+    let payload_len = String.length payload in
+    let send_me =
+      P.sprintf "PUT %s HTTP/1.1\r\n\
+                 Content-type: application/octet-stream\r\n\
+                 Content-length: %d\r\n\r\n
+                 %s"
+        path_query
+        payload_len
+        payload
+    in
+    let total_len = String.length send_me in
+    let _ = U.send a_socket send_me 0 total_len [] in
+    pull_all a_socket |> examine_result
 
 end
