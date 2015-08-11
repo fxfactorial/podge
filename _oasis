@@ -23,7 +23,7 @@ Library "podge"
   BuildTools:ocamlbuild
   install:true
   BuildDepends:
-    yojson, cohttp, tyxml, unix, re.pcre, ezxmlm
+    yojson, cohttp, tyxml, unix, re.pcre, ezxmlm, ANSITerminal
   Modules:Podge
 
 # Executable do_test

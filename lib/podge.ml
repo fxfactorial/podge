@@ -4,6 +4,7 @@ module U = Unix
 module P = Printf
 module L = List
 module Y = Yojson.Basic
+module T = ANSITerminal
 
 module Math = struct
 
@@ -460,5 +461,15 @@ module Xml = struct
   let query_node_of_string ~key str =
     let (_, xml) = from_string str in
     member key xml |> data_to_string
+
+end
+
+module ANSITerminal = struct
+
+  (** Create a colorized message, presumably for a log message *)
+  let colored_message ?(t_color=T.Yellow) ?(m_color=T.Blue) ?(with_time=true) str =
+    let just_time = T.sprintf [T.Foreground t_color] "%s " (Unix.time_now ()) in
+    let just_message = T.sprintf [T.Foreground m_color] "%s" str in
+    if with_time then just_time ^ just_message else just_message
 
 end
