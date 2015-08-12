@@ -450,17 +450,30 @@ end = struct
 
 end
 
-module Xml = struct
+(** Simple querying for Xml nodes, keys order matters *)
+module Xml : sig
+
+  val query_node_of_file : keys:string list -> path:string -> string
+  val query_node_of_string : keys:string list -> str:string -> string
+
+end = struct
 
   open Ezxmlm
 
-  let query_node_of_file ~key path =
-    let (_, xml) = from_channel (open_in path) in
-    member key xml |> data_to_string
+  let rec dig keys xml_doc final_result =
+    match keys with
+    | [] -> final_result
+    | outer_most :: rest ->
+      let new_xml = member outer_most xml_doc in
+      dig rest new_xml (data_to_string new_xml)
 
-  let query_node_of_string ~key str =
+  let query_node_of_file ~keys ~path =
+    let (_, xml) = from_channel (open_in path) in
+    dig keys xml ""
+
+  let query_node_of_string ~keys ~str =
     let (_, xml) = from_string str in
-    member key xml |> data_to_string
+    dig keys xml ""
 
 end
 
