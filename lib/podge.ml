@@ -271,17 +271,17 @@ module Cohttp = struct
     |> Cohttp.Code.code_of_status
     |> Cohttp.Code.is_success
 
-  let show_headers hdrs = Cohttp.Header.iter begin fun key values ->
+  let show_headers hdrs =
+    hdrs |> Cohttp.Header.iter begin fun key values ->
       Printf.sprintf "%s" (Printf.sprintf "%s %s" key (String.concat "" values))
       |> print_endline
     end
-      hdrs
-
 end
 
 module Printf = struct
 
   let printfn str = Printf.kprintf print_endline str
+  let printfn_e str = Printf.kprintf prerr_endline str
 
 end
 
@@ -406,17 +406,19 @@ end = struct
     Buffer.to_bytes final_result |> Bytes.to_string
 
   let examine_result raw_result : Y.json =
+    let make_headers hdrs : (string * Y.json) =
+      ("headers",
+       `List (Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") hdrs
+              |> L.filter (function Re_pcre.Text s -> true | _ -> false)
+              |> L.map (fun (Re_pcre.Text s) -> `String s)))
+    in
     match Re_pcre.split ~rex:(Re_pcre.regexp "\r\n\r\n") raw_result with
     | headers :: body :: [] ->
-      let headers_l : Y.json list =
-        Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") headers
-        |> L.filter (function Re_pcre.Text s -> true | _ -> false)
-        |> L.map (fun (Re_pcre.Text s) -> `String s)
-      in
-      `Assoc [("headers", `List headers_l); ("body", `String body)]
-    | otherwise ->
-      raise (Bad_http_result "Either no data or \
-                              couldn't split headers from body")
+      `Assoc [make_headers headers; ("body", `String body)]
+    | headers :: [] ->
+      `Assoc [make_headers headers; ("body", `String "")]
+    | _ ->
+      raise (Bad_http_result "No Headers or Body, strange")
 
   (** Simple HTTP based get request, produces headers and body in json
       structure with keys "headers" and "body" *)

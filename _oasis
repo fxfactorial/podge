@@ -1,7 +1,7 @@
 OASISFormat: 0.4
 OCamlVersion: >= 4.02.3
 Name:        podge
-Version:     0.3
+Version:     0.4
 Maintainers: Edgar Aroutiounian
 Homepage: http://hyegar.com
 Synopsis:    Shortcuts and helpers for common tasks in OCaml ecosystem
