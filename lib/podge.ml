@@ -1,4 +1,4 @@
-(** Shortcuts and helpers for common tasks in OCaml *)
+(** A Hodgepodge of functionality in OCaml*)
 
 module U = Unix
 module P = Printf
@@ -6,6 +6,7 @@ module L = List
 module Y = Yojson.Basic
 module T = ANSITerminal
 
+(** Math and Probability functions *)
 module Math = struct
 
   type 'a nums = Int : int nums | Float : float nums
@@ -147,6 +148,7 @@ module Math = struct
 
 end
 
+(** Pretty printing of json and updating *)
 module Yojson = struct
 
   type did_update = [`Updated | `No_update]
@@ -164,6 +166,7 @@ module Yojson = struct
     |> Yojson.Basic.pretty_to_string
     |> print_endline
 
+  (** Update a value for a given key *)
   let update ~key ~new_value j : (did_update * Yojson.Basic.json) =
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
@@ -175,6 +178,7 @@ module Yojson = struct
     in
     if !updated then (`Updated, `Assoc g) else (`No_update, `Assoc g)
 
+  (** Remove a key-value pair *)
   let remove ~key j : (did_update * Yojson.Basic.json) =
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
@@ -374,8 +378,6 @@ end = struct
   type exn += Not_valid_uri of string
   type exn += Bad_http_result of string
 
-  (** Produces a socket ready for HTTP requests and returns the
-      socket, host and querystring *)
   let socket_for_url url =
     let as_uri = Uri.of_string url in
     match (as_uri |> Uri.host, as_uri |> Uri.path_and_query) with
@@ -420,8 +422,6 @@ end = struct
     | _ ->
       raise (Bad_http_result "No Headers or Body, strange")
 
-  (** Simple HTTP based get request, produces headers and body in json
-      structure with keys "headers" and "body" *)
   let get url : Y.json =
     let (a_socket, host, p) = socket_for_url url in
     let send_me =
@@ -431,9 +431,6 @@ end = struct
     let _ = U.send a_socket send_me 0 len [] in
     pull_all a_socket |> examine_result
 
-  (** Simple HTTP based put requests: takes url and payload and
-      produces headers and body in json structure with keys "headers" and
-      "body"*)
   let put ~url ~payload : Y.json =
     let (a_socket, _, path_query) = socket_for_url url in
     let payload_len = String.length payload in
@@ -466,7 +463,10 @@ end = struct
     match keys with
     | [] -> final_result
     | outer_most :: rest ->
-      let new_xml = member outer_most xml_doc in
+      let new_xml =
+        try member (String.lowercase outer_most) xml_doc
+        with _ -> member (String.uppercase outer_most) xml_doc
+      in
       dig rest new_xml (data_to_string new_xml)
 
   let query_node_of_file ~keys ~path =

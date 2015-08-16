@@ -10,8 +10,14 @@ modules like the Math module.
 to do a quick HTTP get request for JSON data and subsequently play
 with the JSON.
 
-For example, here is a self-contained demonstration program that does
-a `HTTP` get request
+# Examples
+
+These are all self-contained and tested to work.
+
+## Requests
+
+Program that does a `HTTP` get request for Bitcoin data via [Bitstamp's](https://www.bitstamp.net/api/)
+public REST API.
 
 ```ocaml
 (* This file is named show_query.ml *)
@@ -19,25 +25,54 @@ a `HTTP` get request
 
 let () =
   Podge.Web.get Sys.argv.(1)
-  |> Podge.Yojson.show_pretty_of_in_mem
+  |> Podge.Y.Util.member "body"
+  |> Podge.Y.Util.to_string
+  |> Podge.Yojson.show_pretty_of_string
 ```
 
 And you can run it from the command line with: 
+
 ```shell
-$ utop show_query.ml http://google.com
+$ utop show_query.ml https://www.bitstamp.net/api/ticker/
 {
-  "headers": [
-    "HTTP/1.1 301 Moved Permanently", "Location: http://www.google.com/",
-    "Content-Type: text/html; charset=UTF-8",
-    "Date: Mon, 10 Aug 2015 19:20:56 GMT",
-    "Expires: Wed, 09 Sep 2015 19:20:56 GMT",
-    "Cache-Control: public, max-age=2592000", "Server: gws",
-    "Content-Length: 219", "X-XSS-Protection: 1; mode=block",
-    "X-Frame-Options: SAMEORIGIN", "Alternate-Protocol: 80:quic,p=0"
-  ],
-  "body":
-    "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF=\"http://www.google.com/\">here</A>.\r\n</BODY></HTML>\r\n"
+  "high": "266.44",
+  "last": "261.47",
+  "timestamp": "1439693570",
+  "bid": "261.31",
+  "vwap": "263.89",
+  "volume": "6179.95060788",
+  "low": "259.18",
+  "ask": "261.47"
 }
+```
+
+## Xml
+
+Program for querying XML documents
+
+```html
+<!-- This file is named doc.html -->
+<outer> Some innards
+  <article> A Long article ... </article>
+</outer>
+```
+
+Podge Code
+
+```ocaml
+(* This file is named show_node.ml *)
+#require "podge"
+
+let () = 
+  Podge.Xml.query_node_of_file ["outer";"Article"] Sys.argv.(1)
+  |> print_endline
+```
+
+Result
+
+```shell
+$ utop show_node.ml doc.html
+ A Long article ...
 ```
 
 # Overview of Modules
@@ -54,7 +89,6 @@ at it via `ocp-browser`, provided by the [ocp-index](https://github.com/OCamlPro
 `ocp-browser` is installed.
 
 ![img](./podge_listing.gif)
-
 
 Hopefully the functions are named in such a way that you can infer the
 semantics/intended usage.
