@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name: "podge"
-version: "0.3"
+version: "0.4"
 maintainer: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
 authors: [ "Edgar Aroutiounian <edgar.factorial@gmail.com>" ]
 license: "BSD-3-clause"
@@ -22,12 +22,14 @@ build-test: [
   ["ocaml" "setup.ml" "-test"]
 ]
 depends: [
+  "ANSITerminal"
   "base-unix"
   "cohttp"
+  "ezxmlm"
   "oasis" {build & >= "0.4"}
   "ocamlfind" {build}
   "re"
   "tyxml"
   "yojson"
 ]
-available: [ ocaml-version >= "4.02.1" ]
+available: [ ocaml-version >= "4.02.3" ]

@@ -10,8 +10,13 @@ modules like the Math module.
 to do a quick HTTP get request for JSON data and subsequently play
 with the JSON.
 
-For example, here is a self-contained demonstration program that does
-a `HTTP` get request
+# Examples
+
+These are all self-contained and tested to work.
+
+## Requests
+
+Program that does a `HTTP` get request
 
 ```ocaml
 (* This file is named show_query.ml *)
@@ -23,6 +28,7 @@ let () =
 ```
 
 And you can run it from the command line with: 
+
 ```shell
 $ utop show_query.ml http://google.com
 {
@@ -40,6 +46,35 @@ $ utop show_query.ml http://google.com
 }
 ```
 
+## Xml
+
+Program for querying XML documents
+
+```html
+<!-- This file is named doc.html -->
+<outer> Some innards
+  <article> A Long article ... </article>
+</outer>
+```
+
+Podge Code
+
+```ocaml
+(* This file is named show_node.ml *)
+#require "podge"
+
+let () = 
+  Podge.Xml.query_node_of_file ["outer";"Article"] Sys.argv.(1)
+  |> print_endline
+```
+
+Result
+
+```shell
+$ utop show_node.ml doc.html
+ A Long article ...
+```
+
 # Overview of Modules
 
 Everything is contained under one module, the `Podge` module. Modules
@@ -54,7 +89,6 @@ at it via `ocp-browser`, provided by the [ocp-index](https://github.com/OCamlPro
 `ocp-browser` is installed.
 
 ![img](./podge_listing.gif)
-
 
 Hopefully the functions are named in such a way that you can infer the
 semantics/intended usage.
