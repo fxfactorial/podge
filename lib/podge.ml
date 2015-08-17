@@ -206,12 +206,21 @@ module Html5 = struct
 
 end
 
-module Unix = struct
+module Unix : sig
+
+  type exn += Error of string
+  val read_process_output : string -> string list
+  val read_lines : string -> string list
+  val read_all : string -> string
+  val get_one_char : unit -> char
+  val time_now : unit -> string
+  val daemonize : unit -> unit
+
+end = struct
 
   type exn += Error of string
 
-  let read_process_output p =
-    let ic = Unix.open_process_in p in
+  let exhaust ic =
     let all_input = ref [] in
     try
       while true do
@@ -222,6 +231,15 @@ module Unix = struct
       End_of_file ->
       close_in ic;
       List.rev !all_input
+
+  let read_process_output p =
+    Unix.open_process_in p |> exhaust
+
+  let read_lines path =
+    open_in path |> exhaust
+
+  let read_all path =
+    open_in path |> exhaust |> String.concat ""
 
   (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
