@@ -378,6 +378,15 @@ module Web : sig
   type exn += Not_valid_uri of string
   type exn += Bad_http_result of string
 
+  (** If true then will print out HTTP headers*)
+  val debug_headers : bool ref
+
+  (** If true then will print out the HTTP body *)
+  val debug_body : bool ref
+
+  (** If true then will print out raw HTTP reply *)
+  val debug_raw : bool ref
+
   (** Produces a socket ready for HTTP requests and returns the
       socket, host and querystring *)
   val socket_for_url : string -> U.file_descr * string * string
@@ -395,6 +404,10 @@ end = struct
 
   type exn += Not_valid_uri of string
   type exn += Bad_http_result of string
+
+  let debug_headers, debug_body, debug_raw = ref false, ref false, ref false
+  let a_split = Re_pcre.regexp "\r\n"
+  let splits = Re_pcre.regexp "\r\n\r\n"
 
   let socket_for_url url =
     let as_uri = Uri.of_string url in
@@ -428,14 +441,18 @@ end = struct
   let examine_result raw_result : Y.json =
     let make_headers hdrs : (string * Y.json) =
       ("headers",
-       `List (Re_pcre.full_split ~rex:(Re_pcre.regexp "\r\n") hdrs
+       `List (Re_pcre.full_split ~rex:a_split hdrs
               |> L.filter (function Re_pcre.Text s -> true | _ -> false)
               |> L.map (fun (Re_pcre.Text s) -> `String s)))
     in
-    match Re_pcre.split ~rex:(Re_pcre.regexp "\r\n\r\n") raw_result with
+    if !debug_raw then print_endline raw_result;
+    match Re_pcre.split ~rex:splits raw_result with
     | headers :: body :: [] ->
+      if !debug_headers then print_endline headers;
+      if !debug_body then print_endline body;
       `Assoc [make_headers headers; ("body", `String body)]
     | headers :: [] ->
+      if !debug_headers then print_endline headers;
       `Assoc [make_headers headers; ("body", `String "")]
     | _ ->
       raise (Bad_http_result "No Headers or Body, strange")
