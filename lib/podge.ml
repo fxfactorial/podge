@@ -369,7 +369,20 @@ module List = struct
     helper [] l
 
   let filter_map ~f ~g l =
-    List.fold_left (fun accum value -> if f value then g value :: accum else accum) [] l
+    List.fold_left begin fun accum value ->
+      if f value then g value :: accum else accum end
+      [] l
+
+  let cut l start =
+    let result = List.fold_right begin fun value (counter, (pre, after)) ->
+        if counter <> start then (counter + 1, (value :: pre, after))
+        else (counter, (pre, value :: after))
+      end
+        (List.rev l)
+        (0, ([], []))
+    in
+    let (pre, after) = snd result in
+    (List.rev pre, List.rev after)
 
 end
 
