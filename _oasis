@@ -1,7 +1,7 @@
 OASISFormat:  0.4
 OCamlVersion: >= 4.02.3
 Name:         podge
-Version:      0.4
+Version:      0.5
 Maintainers:  Edgar Aroutiounian
 Homepage:     http://hyegar.com
 Synopsis:     Shortcuts and helpers for common tasks in OCaml ecosystem
@@ -32,7 +32,7 @@ Library "podge"
   BuildTools:ocamlbuild
   install:true
   BuildDepends:
-    yojson, cohttp, tyxml, unix, re.pcre, ezxmlm, ANSITerminal
+    yojson, cohttp, tyxml, unix, re.pcre, ezxmlm, ANSITerminal, stringext
   Modules:Podge
 
 # Executable do_test

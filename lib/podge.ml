@@ -5,6 +5,7 @@ module P = Printf
 module L = List
 module Y = Yojson.Basic
 module T = ANSITerminal
+module S = String
 
 (** Math and Probability functions *)
 module Math = struct
@@ -148,6 +149,11 @@ module Math = struct
 
 end
 
+(* Shamelessly dumping Stringext *)
+module String = struct
+  include Stringext
+end
+
 (** Pretty printing of json and updating *)
 module Yojson = struct
 
@@ -239,7 +245,7 @@ end = struct
     open_in path |> exhaust
 
   let read_all path =
-    open_in path |> exhaust |> String.concat ""
+    open_in path |> exhaust |> S.concat ""
 
   (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
@@ -295,7 +301,7 @@ module Cohttp = struct
 
   let show_headers hdrs =
     hdrs |> Cohttp.Header.iter begin fun key values ->
-      Printf.sprintf "%s" (Printf.sprintf "%s %s" key (String.concat "" values))
+      Printf.sprintf "%s" (Printf.sprintf "%s %s" key (S.concat "" values))
       |> print_endline
     end
 end
@@ -481,7 +487,7 @@ end = struct
 
   let put ~url ~payload : Y.json =
     let (a_socket, _, path_query) = socket_for_url url in
-    let payload_len = String.length payload in
+    let payload_len = S.length payload in
     let send_me =
       P.sprintf "PUT %s HTTP/1.1\r\n\
                  Content-type: application/octet-stream\r\n\
@@ -491,7 +497,7 @@ end = struct
         payload_len
         payload
     in
-    let total_len = String.length send_me in
+    let total_len = S.length send_me in
     let _ = U.send a_socket send_me 0 total_len [] in
     pull_all a_socket |> examine_result
 
@@ -512,8 +518,8 @@ end = struct
     | [] -> final_result
     | outer_most :: rest ->
       let new_xml =
-        try member (String.lowercase outer_most) xml_doc
-        with _ -> member (String.uppercase outer_most) xml_doc
+        try member (S.lowercase outer_most) xml_doc
+        with _ -> member (S.uppercase outer_most) xml_doc
       in
       dig rest new_xml (data_to_string new_xml)
 
