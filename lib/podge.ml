@@ -98,13 +98,57 @@ module Math = struct
 
   let pi = 4.0 *. atan 1.0
 
-  let range ?(chunk=1) ~from to_ =
-    let rec loop lower upper =
-      if lower > upper then []
-      else
-        (lower + chunk) :: loop (lower + chunk) upper
-    in
-    loop from to_
+  (** Range takes:
+     an optional chunk int [defaulting to 1],
+     an optional inclusivity bool [defaulting to false],
+     a labeled ~from int [where the list starts from]
+     and finally, the "upto" int [where the list ends].
+
+     By default, your upto is not inclusive. So for example:
+     1 <--> 5 gives back [1; 2; 3; 4]
+     but
+     1 <---> 5 gives back [1; 2; 3; 4; 5]
+
+     It can also handle descending amounts:
+     1 <---> -10 gives you
+     [1; 0; -1; -2; -3; -4; -5; -6; -7; -8; -9; -10]
+     and 1 <--> 1 gives you []
+
+     Note: <--> <---> are located in Podge.Infix
+     See also: it is tail recursive. *)
+  let range ?(chunk=1) ?(inclusive=false) ~from upto =
+    if (upto < from)
+    then begin
+      let rec dec_aux count upto accum =
+        if inclusive
+        then begin
+          if (count - chunk) < upto
+          then List.rev (count::accum)
+          else dec_aux (count - chunk) upto (count::accum)
+        end
+        else begin
+          if (count - chunk) <= upto
+          then List.rev (count::accum)
+          else dec_aux (count - chunk) upto (count::accum)
+        end
+      in
+      dec_aux from upto []
+    end
+    else if upto = from then []
+    else begin
+      let rec asc_aux count upto accum =
+        if inclusive then begin
+          if (count + chunk) > upto
+          then List.rev (count::accum)
+          else asc_aux (count + chunk) upto (count::accum)
+        end else begin
+            if (count + chunk) >= upto
+            then List.rev (count::accum)
+            else asc_aux (count + chunk) upto (count::accum)
+        end
+      in
+      asc_aux from upto []
+    end
 
   let validate_prob p =
     if p < 0.0 || p > 1.0
@@ -147,6 +191,13 @@ module Math = struct
     in
     aux m (init_with_f (fun i -> pow 2 i, n - i - 1) n)
 
+end
+
+module Infix = struct
+  (** See Podge.Math.range for documentation. *)
+  let (<-->) i j = Math.range ~from:i j
+  (** See Podge.Math.range for documentation. *)
+  let (<--->) i j = Math.range ~inclusive:true ~from:i j
 end
 
 (* Shamelessly dumping Stringext *)
