@@ -1,4 +1,4 @@
-(** A Hodgepodge of functionality in OCaml*)
+(** A Hodgepodge of functionality in OCaml *)
 
 module U = Unix
 module P = Printf
@@ -272,6 +272,11 @@ module Unix : sig
   val get_one_char : unit -> char
   val time_now : unit -> string
   val daemonize : unit -> unit
+  val timeout:
+      ?on_timeout:(unit -> unit) ->
+      arg:'a ->
+      timeout:int ->
+      default_value:'b -> ('a -> 'b) -> 'b
 
 end = struct
 
@@ -326,6 +331,22 @@ end = struct
             Unix.chdir "/"; List.iter Unix.close [Unix.stdin; Unix.stdout]
           end
       end
+
+  let timeout ?(on_timeout = fun () -> ()) ~arg ~timeout ~default_value f =
+    let module Wrapper = struct exception Timeout end in
+    let sigalrm_handler = Sys.Signal_handle (fun _ -> raise Wrapper.Timeout) in
+    let old_behavior = Sys.signal Sys.sigalrm sigalrm_handler in
+    let reset_sigalrm () = Sys.set_signal Sys.sigalrm old_behavior in
+    ignore (Unix.alarm timeout);
+    try
+      let res = f arg in
+      reset_sigalrm ();
+      res
+    with exc ->
+      reset_sigalrm ();
+      if exc = Wrapper.Timeout
+      then (on_timeout (); default_value)
+      else raise exc
 
 end
 
