@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name: "podge"
-version: "0.5"
+version: "0.6.0"
 maintainer: "Edgar Aroutiounian <edgar.factorial@gmail.com>"
 authors: [ "Edgar Aroutiounian <edgar.factorial@gmail.com>" ]
 license: "BSD-3-clause"
@@ -35,4 +35,4 @@ depends: [
   "yojson"
   "stringext"
 ]
-available: [ ocaml-version >= "4.02.3" ]
+available: [ ocaml-version >= "4.02.0" ]
