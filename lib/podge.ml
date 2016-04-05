@@ -514,11 +514,9 @@ end = struct
     let final_result = Buffer.create 4096 in
     let a_buffer = Bytes.create 1024 in
     let rec produce_data () =
-      U.select [a_socket] [] [] 0.75 |>
-      function
+      U.select [a_socket] [] [] 0.00 |> function
       | read_me :: _, _, _ ->
-        begin
-          match U.recv a_socket a_buffer 0 1024 [] with
+        begin match U.recv a_socket a_buffer 0 1024 [] with
           | 0 | -1 -> ()
           | n ->
             Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);

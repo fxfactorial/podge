@@ -1,7 +1,8 @@
+# -*- conf -*-
 OASISFormat:  0.4
 OCamlVersion: >= 4.02.0
 Name:         podge
-Version:      0.6.0
+Version:      0.7.0
 Maintainers:  Edgar Aroutiounian
 Homepage:     http://hyegar.com
 Synopsis:     Shortcuts and helpers for common tasks in OCaml ecosystem
