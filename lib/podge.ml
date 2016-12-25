@@ -99,23 +99,23 @@ module Math = struct
   let pi = 4.0 *. atan 1.0
 
   (** Range takes:
-     an optional chunk int [defaulting to 1],
-     an optional inclusivity bool [defaulting to false],
-     a labeled ~from int [where the list starts from]
-     and finally, the "upto" int [where the list ends].
+      an optional chunk int [defaulting to 1],
+      an optional inclusivity bool [defaulting to false],
+      a labeled ~from int [where the list starts from]
+      and finally, the "upto" int [where the list ends].
 
-     By default, your upto is not inclusive. So for example:
-     1 <--> 5 gives back [1; 2; 3; 4]
-     but
-     1 <---> 5 gives back [1; 2; 3; 4; 5]
+      By default, your upto is not inclusive. So for example:
+      1 <--> 5 gives back [1; 2; 3; 4]
+      but
+      1 <---> 5 gives back [1; 2; 3; 4; 5]
 
-     It can also handle descending amounts:
-     1 <---> -10 gives you
-     [1; 0; -1; -2; -3; -4; -5; -6; -7; -8; -9; -10]
-     and 1 <--> 1 gives you []
+      It can also handle descending amounts:
+      1 <---> -10 gives you
+      [1; 0; -1; -2; -3; -4; -5; -6; -7; -8; -9; -10]
+      and 1 <--> 1 gives you []
 
-     Note: <--> <---> are located in Podge.Infix
-     See also: it is tail recursive. *)
+      Note: <--> <---> are located in Podge.Infix
+      See also: it is tail recursive. *)
   let range ?(chunk=1) ?(inclusive=false) ~from upto =
     if (upto < from)
     then begin
@@ -142,9 +142,9 @@ module Math = struct
           then List.rev (count::accum)
           else asc_aux (count + chunk) upto (count::accum)
         end else begin
-            if (count + chunk) >= upto
-            then List.rev (count::accum)
-            else asc_aux (count + chunk) upto (count::accum)
+          if (count + chunk) >= upto
+          then List.rev (count::accum)
+          else asc_aux (count + chunk) upto (count::accum)
         end
       in
       asc_aux from upto []
@@ -273,10 +273,10 @@ module Unix : sig
   val time_now : unit -> string
   val daemonize : unit -> unit
   val timeout:
-      ?on_timeout:(unit -> unit) ->
-      arg:'a ->
-      timeout:int ->
-      default_value:'b -> ('a -> 'b) -> 'b
+    ?on_timeout:(unit -> unit) ->
+    arg:'a ->
+    timeout:int ->
+    default_value:'b -> ('a -> 'b) -> 'b
 
 end = struct
 
@@ -466,110 +466,138 @@ end
 
 module Web : sig
 
-  type exn += Not_valid_uri of string
-  type exn += Bad_http_result of string
+  (** Takes a URL and gives back a tuple of status line, headers alist
+      and an optional body. Only works with HTTP *)
+  val get : string -> string * (string * string) list * bytes option
 
-  (** If true then will print out HTTP headers*)
-  val debug_headers : bool ref
-
-  (** If true then will print out the HTTP body *)
-  val debug_body : bool ref
-
-  (** If true then will print out raw HTTP reply *)
-  val debug_raw : bool ref
-
-  (** Produces a socket ready for HTTP requests and returns the
-      socket, host and querystring *)
-  val socket_for_url : string -> U.file_descr * string * string
-
-  (** Simple HTTP based get request, produces headers and body in json
-      structure with keys "headers" and "body" *)
-  val get : string -> Y.json
-
-  (** Simple HTTP based put requests: takes url and payload and
-      produces headers and body in json structure with keys "headers" and
-      "body"*)
-  val put : url:string -> payload:string -> Y.json
+  (** Takes a route and a bytes for body and does a PUT, no checking
+      of HTTP errors *)
+  val put : string -> bytes -> unit
 
 end = struct
 
-  type exn += Not_valid_uri of string
-  type exn += Bad_http_result of string
+  let socket_for_addr (addr, addr_t, port) =
+    let s = U.(socket addr_t U.SOCK_STREAM 0) in
+    U.connect s (U.ADDR_INET (addr, port));
+    s
 
-  let debug_headers, debug_body, debug_raw = ref false, ref false, ref false
-  let a_split = Re_pcre.regexp "\r\n"
-  let splits = Re_pcre.regexp "\r\n\r\n"
-
-  let socket_for_url url =
-    let as_uri = Uri.of_string url in
-    match (as_uri |> Uri.host, as_uri |> Uri.path_and_query) with
-    | (None, _) -> raise (Not_valid_uri "Check your input, don't seem right")
-    | (Some host, p_query) ->
-      let this_inet_addr = (U.gethostbyname host).U.h_addr_list.(0) in
-      let a_socket = U.socket U.PF_INET U.SOCK_STREAM 0 in
-      U.connect a_socket (U.ADDR_INET (this_inet_addr, 80));
-      (a_socket, host, p_query)
-
-  let pull_all a_socket =
-    let final_result = Buffer.create 4096 in
-    let a_buffer = Bytes.create 1024 in
-    let rec produce_data () =
-      U.select [a_socket] [] [] 0.00 |> function
-      | read_me :: _, _, _ ->
-        begin match U.recv a_socket a_buffer 0 1024 [] with
-          | 0 | -1 -> ()
-          | n ->
-            Buffer.add_bytes final_result (Bytes.sub a_buffer 0 n);
-            produce_data ()
-        end
-      | _ -> ()
+  let produce_headers sock =
+    let buff = Buffer.create 1024 in
+    let prev = Bytes.create 1 in
+    let next = Bytes.create 1 in
+    let _ = U.read sock prev 0 1 in
+    Buffer.add_bytes buff prev;
+    let module Stop = struct exception Read end in
+    (try
+       while true do
+         let _ = U.read sock next 0 1 in
+         if (prev = "\n" && next = "\r") ||
+            (prev = "\n" && next = "\n")
+         then raise Stop.Read;
+         Bytes.(set prev 0 (get next 0));
+         Buffer.add_bytes buff next
+       done
+     with
+       Stop.Read -> ());
+    (* Read one more to prepare for reading body *)
+    U.read sock prev 0 1 |> ignore;
+    let status::headers =
+      Buffer.to_bytes buff
+      |> S.split_on_char '\n'
+      |> L.map S.trim
     in
-    produce_data ();
-    Buffer.to_bytes final_result |> Bytes.to_string
-
-  let examine_result raw_result : Y.json =
-    let make_headers hdrs : (string * Y.json) =
-      ("headers",
-       `List (Re_pcre.full_split ~rex:a_split hdrs
-              |> L.filter (function Re_pcre.Text s -> true | _ -> false)
-              |> L.map (fun (Re_pcre.Text s) -> `String s)))
+    let table =
+      L.map (fun line ->
+          match S.split_on_char ':' line with
+          | key::value::[] -> (key, S.trim value)
+          | key::value::rest ->
+            (key, S.concat "" (value :: rest) |> S.trim)
+          | _ -> (line, "")
+        ) headers
+      |> L.filter (fun (key, _) -> key <> "")
+      |> L.map (fun (key, v) -> (S.lowercase_ascii key, v))
     in
-    if !debug_raw then print_endline raw_result;
-    match Re_pcre.split ~rex:splits raw_result with
-    | headers :: body :: [] ->
-      if !debug_headers then print_endline headers;
-      if !debug_body then print_endline body;
-      `Assoc [make_headers headers; ("body", `String body)]
-    | headers :: [] ->
-      if !debug_headers then print_endline headers;
-      `Assoc [make_headers headers; ("body", `String "")]
-    | _ ->
-      raise (Bad_http_result "No Headers or Body, strange")
+    (status, table)
 
-  let get url : Y.json =
-    let (a_socket, host, p) = socket_for_url url in
-    let send_me =
-      P.sprintf "GET %s HTTP/1.1\r\nHOST: %s\r\n\r\n" p host |> Bytes.of_string
+  let socket_from_route route =
+    let s = ref (Uri.of_string route) in
+    let http_port = match Uri.scheme !s with
+      | None -> s := "http://" ^ route |> Uri.of_string; 80
+      | Some s when s = "http" -> 80
+      | Some s when s = "https" ->
+        raise (Invalid_argument "HTTPS not implemented")
+      | _ -> raise (Invalid_argument "Invalid given protocol, \
+                                      can only handle http(s)")
     in
-    let len = Bytes.length send_me in
-    let _ = U.send a_socket send_me 0 len [] in
-    pull_all a_socket |> examine_result
+    let pair = U.(
+        try
+          let entry =
+            gethostbyname (Uri.host_with_default !s)
+          in
+          entry.h_addr_list.(0), entry.h_addrtype, http_port
+        with Invalid_argument _ ->
+          raise (Invalid_argument "Make sure host name is valid")
+      )
+    in
+    socket_for_addr pair
 
-  let put ~url ~payload : Y.json =
-    let (a_socket, _, path_query) = socket_for_url url in
-    let payload_len = S.length payload in
-    let send_me =
+  let put route body =
+    let sock = socket_from_route route in
+    let write_this =
       P.sprintf "PUT %s HTTP/1.1\r\n\
-                 Content-type: application/octet-stream\r\n\
                  Content-length: %d\r\n\r\n
                  %s"
-        path_query
-        payload_len
-        payload
+        (Uri.(path (of_string route)))
+        (Bytes.length body)
+        body
     in
-    let total_len = S.length send_me in
-    let _ = U.send a_socket send_me 0 total_len [] in
-    pull_all a_socket |> examine_result
+    let written = ref 0 in
+    while !written <> (Bytes.length write_this) do
+      let did_write =
+        U.send sock write_this 0 (Bytes.length write_this) []
+      in
+      written := !written + did_write
+    done
+
+  (* Only does very simple HTTP GET requests *)
+  let get route =
+    let s = ref (Uri.of_string route) in
+    let sock = socket_from_route route in
+    let write_this =
+      P.sprintf "GET %s HTTP/1.1 \r\nHost: %s\r\n\r\n\r\n"
+        (match Uri.path !s with "" -> "/" | s -> s)
+        (Uri.host_with_default ~default:"" !s)
+    in
+    let written = ref 0 in
+    while !written <> (Bytes.length write_this) do
+      let did_write =
+        U.send sock write_this 0 (Bytes.length write_this) []
+      in
+      written := !written + did_write
+    done;
+
+    let (status_line, headers) = produce_headers sock in
+
+    let content_length =
+      try
+        let (_, len) =
+          L.find (fun (key, _) -> key = "content-length") headers
+        in
+        Some len
+      with Not_found ->
+        None
+    in
+    match content_length with
+    | None -> (status_line, headers, None)
+    | Some len ->
+      let content_length = int_of_string len in
+      let buff = Bytes.create content_length in
+      let did_read = ref 0 in
+      while !did_read <> content_length do
+        let real_read = U.read sock buff 0 content_length in
+        did_read := !did_read + real_read
+      done;
+      (status_line, headers, Some buff)
 
 end
 
@@ -588,8 +616,8 @@ end = struct
     | [] -> final_result
     | outer_most :: rest ->
       let new_xml =
-        try member (S.lowercase outer_most) xml_doc
-        with _ -> member (S.uppercase outer_most) xml_doc
+        try member (S.lowercase_ascii outer_most) xml_doc
+        with _ -> member (S.lowercase_ascii outer_most) xml_doc
       in
       dig rest new_xml (data_to_string new_xml)
 

@@ -1,8 +1,8 @@
 # -*- conf -*-
 OASISFormat:  0.4
-OCamlVersion: >= 4.02.0
+OCamlVersion: >= 4.04.0
 Name:         podge
-Version:      0.7.0
+Version:      0.8.0
 Maintainers:  Edgar Aroutiounian
 Homepage:     http://hyegar.com
 Synopsis:     Shortcuts and helpers for common tasks in OCaml ecosystem
@@ -28,7 +28,7 @@ Description:
 
 AlphaFeatures: ocamlbuild_more_args
 
-Library "podge"
+Library podge
   Path:lib
   BuildTools:ocamlbuild
   install:true
