@@ -4,7 +4,7 @@ OCamlVersion: >= 4.04.0
 Name:         podge
 Version:      0.8.0
 Maintainers:  Edgar Aroutiounian
-Homepage:     http://hyegar.com
+Homepage:     https://github.com/fxfactorial/podge
 Synopsis:     Shortcuts and helpers for common tasks in OCaml ecosystem
 Authors:      Edgar Aroutiounian <edgar.factorial@gmail.com>
 License:      BSD-3-clause
