@@ -450,17 +450,27 @@ end
 
 module Web : sig
 
+  type error_t =
+      Can_only_handle_http | Host_lookup_failed | No_ip_from_hostname
+    | Post_failed
+
+  type reply = (string list * string, error_t) result
+
   (** Takes a HTTP url and gives back an optional pair of a list of
       headers and the body *)
-  type error_t = Can_only_handle_http
-
-  val get: ?trim_body:bool -> string -> (string list * string, error_t) result
+  val get: ?trim_body:bool -> string -> reply
 
   (** Takes a route and a bytes for body and does a PUT, no checking
       of HTTP errors *)
-  (* val post : string -> bytes -> bytes option *)
+  val post :  ?trim_reply:bool -> ?post_body:string -> string -> reply
 
 end = struct
+
+  type error_t =
+      Can_only_handle_http | Host_lookup_failed | No_ip_from_hostname
+    | Post_failed
+
+  type reply = (string list * string, error_t) result
 
   let (>>=) x (f: 'a -> 'b option) = match x with None -> None | Some d -> (f d)
 
@@ -504,8 +514,6 @@ end = struct
      Bytes.sub http_resp !starting_point leftover
      |> fun body -> if trim_body then S.trim body else body)
 
-  type error_t = Can_only_handle_http
-
   let get ?(trim_body=true) route =
     let error_reason = ref Can_only_handle_http in
     let uri = Uri.of_string route in
@@ -513,7 +521,11 @@ end = struct
       match s with
       | x when x <> "http" -> None
       | _ -> Uri.host uri >>= fun host ->
-        let (in_chan, out_chan) = U.open_connection (address host) in
+        (try Some (U.open_connection (address host))
+         with
+           Not_found -> error_reason := Host_lookup_failed; None
+         | Invalid_argument _ -> error_reason := No_ip_from_hostname; None
+        ) >>= fun (in_chan, out_chan) ->
         U.(setsockopt (descr_of_out_channel out_chan) TCP_NODELAY true);
         let msg host =
           P.sprintf
@@ -527,36 +539,44 @@ end = struct
         (try close_in in_chan; close_out out_chan with _ -> ());
         Some (headers_and_body ~trim_body all)
     in
-    match request with
-    | None -> Error !error_reason
-    | Some x -> Ok x
+    match request with None -> Error !error_reason | Some x -> Ok x
 
-  let post route body =
+  let post ?(trim_reply=true) ?post_body route =
     let uri = Uri.of_string route in
-    Uri.scheme uri >>= fun s ->
-    match s with
-    | x when x <> "http" -> None
-    | _ -> Uri.host uri >>= fun host ->
-      let (in_chan, out_chan) = U.open_connection (address host) in
-      let fd = U.descr_of_in_channel in_chan in
-      let fd_ = U.descr_of_out_channel out_chan in
-
-      U.setsockopt fd U.TCP_NODELAY true;
-      U.setsockopt fd_ U.TCP_NODELAY true;
-      let post_request =
-        P.sprintf "POST %s HTTP/1.1\r\n\
-                   Host:%s\r\n\
-                   Content-length: %d\r\n\
-                   User-Agent: OCaml - Podge\r\n\
-                   Connection: close\r\n\r\n%s"
-          (Uri.path_and_query uri)
-          host
-          (Bytes.length body)
-          body
-      in
-      really_output out_chan post_request;
-      let reply = read_all in_chan in
-      Some reply
+    let error_reason = ref Post_failed in
+    let request =
+      Uri.scheme uri >>= fun s ->
+      match s with
+      | x when x <> "http" -> None
+      | _ -> Uri.host uri >>= fun host ->
+        let (in_chan, out_chan) = U.open_connection (address host) in
+        let fd_ = U.descr_of_out_channel out_chan in
+        U.setsockopt fd_ U.TCP_NODELAY true;
+        let post_request = match post_body with
+          | Some b ->
+            P.sprintf "POST %s HTTP/1.1\r\n\
+                       Host:%s\r\n\
+                       Content-length: %d\r\n\
+                       User-Agent: OCaml - Podge\r\n\
+                       Connection: close\r\n\r\n%s"
+              (Uri.path_and_query uri)
+              host
+              (Bytes.length b)
+              b
+          | None ->
+            P.sprintf "POST %s HTTP/1.1\r\n\
+                       Host:%s\r\n\
+                       User-Agent: OCaml - Podge\r\n\
+                       Connection: close\r\n\r\n"
+              (Uri.path_and_query uri)
+              host
+        in
+        really_output out_chan post_request;
+        let reply = read_all in_chan in
+        (try close_in in_chan; close_out out_chan with _ -> ());
+        Some (headers_and_body ~trim_body:trim_reply reply)
+    in
+    match request with None -> Error !error_reason | Some x -> Ok x
 
 end
 
