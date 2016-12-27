@@ -1,17 +1,24 @@
 (** A Hodgepodge of functionality in OCaml *)
 
-module U = Unix
-module P = Printf
-module L = List
-module Y = Yojson.Basic
-module T = ANSITerminal
-module S = String
+(** Module handles to the original libraries themselves *)
+module Originals = struct
+  module U = Unix
+  module P = Printf
+  module L = List
+  module Y = Yojson.Basic
+  module T = ANSITerminal
+  module S = String
+end
+
+(** Simple Module Alias of Astring *)
+module String = Astring
 
 (** Math and Probability functions *)
 module Math = struct
 
   type 'a nums = Int : int nums | Float : float nums
 
+  (** Produce an array of random Floats or Ints *)
   let random_array =
     fun (type t) n (num_t : t nums) ->
       Random.self_init ();
@@ -23,10 +30,12 @@ module Math = struct
       | Float ->
         (Array.init n (fun _ -> Random.float max_float) : t array)
 
+  (** Calculate first deriviative of f *)
   let derivative ~f argument =
     let eps = sqrt epsilon_float in
     ((f (argument +. eps)) -. (f (argument -. eps))) /. (2. *. eps)
 
+  (** Simple Linear regression *)
   let linear_regression ~xs ~ys =
     let sum xs = Array.fold_right (fun value running -> value +. running) xs 0.0 in
     let mean xs = (sum xs) /. (float_of_int (Array.length xs)) in
@@ -43,7 +52,7 @@ module Math = struct
       let sum_xy = ref 0.0 in
       let sum_sq_v_x = ref 0.0 in
       let sum_sq_v_y = ref 0.0 in
-      let zipped = L.combine (Array.to_list xs) (Array.to_list ys) in
+      let zipped = Originals.L.combine (Array.to_list xs) (Array.to_list ys) in
       List.iter begin fun (i_x, i_y) ->
         let var_x = i_x -. mean_x in
         let var_y = i_y -. mean_y in
@@ -74,15 +83,14 @@ module Math = struct
       | 0 -> accum
       | x -> string_of_int (a_num mod 2) :: helper (a_num / 2) accum
     in
-    helper num [] |> List.rev |> String.concat ""
+    helper num [] |> List.rev |> Originals.S.concat ""
 
   let bit_string_of_string str =
     let all_ints = ref [] in
-    String.iter begin fun a_char ->
-      all_ints := (int_of_char a_char) :: !all_ints
-    end
+    Originals.S.iter
+      (fun a_char -> all_ints := (int_of_char a_char) :: !all_ints)
       str;
-    List.rev !all_ints |> List.map bit_string_of_int |> String.concat ""
+    List.rev !all_ints |> List.map bit_string_of_int |> Originals.S.concat ""
 
   let sum_ints l =
     List.fold_left ( + ) 0 l
@@ -260,12 +268,26 @@ end
 
 module Unix : sig
 
+  (** Read all the output of a process *)
   val read_process_output : string -> string list
+
+  (** Read all the contents of a file, get back a string *)
   val read_lines : string -> string list
+
+  (** Read all the contents of a file as a single string *)
   val read_all : string -> string
+
+  (** Read one char from the terminal without waiting for the return
+      key *)
   val get_one_char : unit -> char
+
+  (** Simple time stamp of the current time *)
   val time_now : unit -> string
+
+  (** Daemonize the current process *)
   val daemonize : unit -> unit
+
+  (** Simple timeout  *)
   val timeout:
     ?on_timeout:(unit -> unit) ->
     arg:'a ->
@@ -285,22 +307,20 @@ end = struct
 
   let read_lines path = open_in path |> exhaust
 
-  let read_all path = open_in path |> exhaust |> S.concat ""
+  let read_all path = open_in path |> exhaust |> Originals.S.concat ""
 
-  (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
-    let termio = Unix.tcgetattr Unix.stdin in
-    Unix.tcsetattr Unix.stdin Unix.TCSADRAIN { termio with Unix.c_icanon = false };
+    let termio = Unix.(tcgetattr stdin) in
+    Unix.(tcsetattr stdin TCSADRAIN { termio with c_icanon = false });
     let res = input_char stdin in
-    Unix.tcsetattr Unix.stdin Unix.TCSADRAIN termio;
+    Unix.(tcsetattr stdin TCSADRAIN termio);
     res
 
-  let time_now () =
-    let localtime = Unix.localtime (Unix.time ()) in
-    Printf.sprintf "[%02u:%02u:%02u]"
-      localtime.Unix.tm_hour
-      localtime.Unix.tm_min
-      localtime.Unix.tm_sec
+  let time_now () = Unix.(
+    let localtime = localtime (time ()) in
+    Printf.sprintf
+      "[%02u:%02u:%02u]" localtime.tm_hour localtime.tm_min localtime.tm_sec
+    )
 
   let daemonize () = match Unix.fork () with
     | pid ->
@@ -317,8 +337,8 @@ end = struct
       end
 
   let timeout ?(on_timeout = fun () -> ()) ~arg ~timeout ~default_value f =
-    let module Wrapper = struct exception Timeout end in
-    let sigalrm_handler = Sys.Signal_handle (fun _ -> raise Wrapper.Timeout) in
+    let exception Timeout in
+    let sigalrm_handler = Sys.Signal_handle (fun _ -> raise Timeout) in
     let old_behavior = Sys.signal Sys.sigalrm sigalrm_handler in
     let reset_sigalrm () = Sys.set_signal Sys.sigalrm old_behavior in
     ignore (Unix.alarm timeout);
@@ -328,7 +348,7 @@ end = struct
       res
     with exc ->
       reset_sigalrm ();
-      if exc = Wrapper.Timeout
+      if exc = Timeout
       then (on_timeout (); default_value)
       else raise exc
 
@@ -357,7 +377,7 @@ module Cohttp = struct
 
   let show_headers hdrs =
     hdrs |> Cohttp.Header.iter begin fun key values ->
-      Printf.sprintf "%s" (Printf.sprintf "%s %s" key (S.concat "" values))
+      Printf.sprintf "%s" (Printf.sprintf "%s %s" key (Originals.S.concat "" values))
       |> print_endline
     end
 end
@@ -450,11 +470,13 @@ end
 
 module Web : sig
 
+  (** Various reason why a HTTP request might fail *)
   type error_t =
       Can_only_handle_http | Host_lookup_failed | No_ip_from_hostname
     | Post_failed
 
-  type reply = (string list * string, error_t) result
+  (** Goes: HTTP status line, HTTP Headers, response body *)
+  type reply = (string * string list * string, error_t) result
 
   (** Takes a HTTP url and gives back an optional pair of a list of
       headers and the body *)
@@ -470,12 +492,12 @@ end = struct
       Can_only_handle_http | Host_lookup_failed | No_ip_from_hostname
     | Post_failed
 
-  type reply = (string list * string, error_t) result
+  type reply = (string * string list * string, error_t) result
 
   let (>>=) x (f: 'a -> 'b option) = match x with None -> None | Some d -> (f d)
 
   let address host =
-    U.(ADDR_INET ((gethostbyname host).h_addr_list.(0), 80))
+    Originals.U.(ADDR_INET ((gethostbyname host).h_addr_list.(0), 80))
 
   let really_output out_chan message =
     output_bytes out_chan message; flush out_chan
@@ -504,15 +526,17 @@ end = struct
        done;
      with Exit -> ());
     let leftover = end_len - !starting_point in
-    let headers =
-      Bytes.sub http_resp 0 !starting_point
-      |> String.split_on_char '\n'
-      |> L.map String.trim
-      |> L.filter (( <> ) "")
+    let status_line::headers = Originals.(
+        Bytes.sub http_resp 0 !starting_point
+        |> S.split_on_char '\n'
+        |> L.map S.trim
+        |> L.filter (( <> ) "")
+      )
     in
-    (headers,
+    (status_line,
+     headers,
      Bytes.sub http_resp !starting_point leftover
-     |> fun body -> if trim_body then S.trim body else body)
+     |> fun body -> if trim_body then Originals.S.trim body else body)
 
   let get ?(trim_body=true) route =
     let error_reason = ref Can_only_handle_http in
@@ -521,14 +545,14 @@ end = struct
       match s with
       | x when x <> "http" -> None
       | _ -> Uri.host uri >>= fun host ->
-        (try Some (U.open_connection (address host))
+        (try Some (Originals.U.open_connection (address host))
          with
            Not_found -> error_reason := Host_lookup_failed; None
          | Invalid_argument _ -> error_reason := No_ip_from_hostname; None
         ) >>= fun (in_chan, out_chan) ->
-        U.(setsockopt (descr_of_out_channel out_chan) TCP_NODELAY true);
+        Originals.U.(setsockopt (descr_of_out_channel out_chan) TCP_NODELAY true);
         let msg host =
-          P.sprintf
+          Originals.P.sprintf
             "GET / HTTP/1.1\r\n\
              Host:%s\r\n\
              User-Agent: OCaml - Podge\r\n\
@@ -549,25 +573,25 @@ end = struct
       match s with
       | x when x <> "http" -> None
       | _ -> Uri.host uri >>= fun host ->
-        let (in_chan, out_chan) = U.open_connection (address host) in
-        let fd_ = U.descr_of_out_channel out_chan in
-        U.setsockopt fd_ U.TCP_NODELAY true;
+        let (in_chan, out_chan) = Originals.U.open_connection (address host) in
+        let fd_ = Originals.U.descr_of_out_channel out_chan in
+        Originals.(U.setsockopt fd_ U.TCP_NODELAY true);
         let post_request = match post_body with
           | Some b ->
-            P.sprintf "POST %s HTTP/1.1\r\n\
-                       Host:%s\r\n\
-                       Content-length: %d\r\n\
-                       User-Agent: OCaml - Podge\r\n\
-                       Connection: close\r\n\r\n%s"
+            Originals.P.sprintf "POST %s HTTP/1.1\r\n\
+                                 Host:%s\r\n\
+                                 Content-length: %d\r\n\
+                                 User-Agent: OCaml - Podge\r\n\
+                                 Connection: close\r\n\r\n%s"
               (Uri.path_and_query uri)
               host
               (Bytes.length b)
               b
           | None ->
-            P.sprintf "POST %s HTTP/1.1\r\n\
-                       Host:%s\r\n\
-                       User-Agent: OCaml - Podge\r\n\
-                       Connection: close\r\n\r\n"
+            Originals.P.sprintf "POST %s HTTP/1.1\r\n\
+                                 Host:%s\r\n\
+                                 User-Agent: OCaml - Podge\r\n\
+                                 Connection: close\r\n\r\n"
               (Uri.path_and_query uri)
               host
         in
@@ -595,8 +619,8 @@ end = struct
     | [] -> final_result
     | outer_most :: rest ->
       let new_xml =
-        try member (S.lowercase_ascii outer_most) xml_doc
-        with _ -> member (S.lowercase_ascii outer_most) xml_doc
+        try member (Originals.S.lowercase_ascii outer_most) xml_doc
+        with _ -> member (Originals.S.lowercase_ascii outer_most) xml_doc
       in
       dig rest new_xml (data_to_string new_xml)
 
@@ -610,12 +634,14 @@ end = struct
 
 end
 
-(* module ANSITerminal = struct *)
+module ANSITerminal = struct
 
-(*   (\** Create a colorized message, presumably for a log message *\) *)
-(*   let colored_message ?(t_color=T.Yellow) ?(m_color=T.Blue) ?(with_time=true) str = *)
-(*     let just_time = T.sprintf [T.Foreground t_color] "%s " (Unix.time_now ()) in *)
-(*     let just_message = T.sprintf [T.Foreground m_color] "%s" str in *)
-(*     if with_time then just_time ^ just_message else just_message *)
+  open Originals
 
-(* end *)
+  (** Create a colorized message, presumably for a log message *)
+  let colored_message ?(t_color=T.Yellow) ?(m_color=T.Blue) ?(with_time=true) str =
+    let just_time = T.sprintf [T.Foreground t_color] "%s " (Unix.time_now ()) in
+    let just_message = T.sprintf [T.Foreground m_color] "%s" str in
+    if with_time then just_time ^ just_message else just_message
+
+end

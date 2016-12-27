@@ -6,7 +6,7 @@ restricting. Podge is a single module containing specialized modules
 for their respectives usages for seemingly common tasks.
 
 Some conveniences with Podge:
-1) Web: Simple HTTP get/put requests that return Yojson objects
+1) Web: Simple HTTP get/put requests
 2) Yojson: Pretty printing, updating keys, and removing key-value pairs
    from Yojson objects
 3) Unix: Read output of a process, simple daemonize.

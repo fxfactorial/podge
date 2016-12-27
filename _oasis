@@ -9,13 +9,14 @@ Synopsis:     Shortcuts and helpers for common tasks in OCaml ecosystem
 Authors:      Edgar Aroutiounian <edgar.factorial@gmail.com>
 License:      BSD-3-clause
 Plugins:      META (0.4), DevFiles (0.4)
+BuildTools:   ocamlbuild, ocamldoc
 Description:
   If you're doing any modern OCaml then you're doubtlessly annoyed
   by the state of libraries and committing to one of the big ones
   can be restricting. Podge is a single module containing specialized
   modules for their respectives usages for seemingly common tasks.
   Some conveniences with Podge:
-  1) Web: Simple HTTP get/put requests that return Yojson objects
+  1) Web: Simple HTTP get/put requests
   2) Yojson: Pretty printing, updating keys, and removing key-value pairs
      from Yojson objects
   3) Unix: Read output of a process, simple daemonize.
@@ -30,19 +31,27 @@ AlphaFeatures: ocamlbuild_more_args
 
 Library podge
   Path:lib
-  BuildTools:ocamlbuild
+  NativeOpt: -g -w +a-4-40..42-44-45-48
+  ByteOpt: -g -w +a-4-40..42-44-45-48
   install:true
   BuildDepends:
-    yojson, cohttp, tyxml, unix, re.pcre, ezxmlm, ANSITerminal, stringext
+    yojson, cohttp, tyxml, unix,
+    re.pcre, ezxmlm, ANSITerminal, astring
   Modules:Podge
 
-# Executable do_test
-#   Path: tests
-#   MainIs: do_test.ml
-#   BuildTools:ocamlbuild
-#   BuildDepends: podge
-#   Install: false
+SourceRepository master
+  Type:     git
+  Location: https://github.com/fxfactorial/podge.git
+  Browser:  https://github.com/fxfactorial/podge
 
-# Test run_test
-#   Command: $do_test
-#   TestTools: do_test
+Document api
+  Title:              Documentation and API reference for Podge
+  Type:               ocamlbuild (0.4)
+  BuildTools+:        ocamldoc
+  InstallDir:         $htmldir/podge
+  PostCommand:        cp docs/style.css api.docdir && cp api.docdir/* docs
+  XOCamlbuildPath:    docs
+  XOCamlbuildModules: lib/Podge
+  Install:            true
+  XOCamlbuildExtraArgs:
+    "-docflags '-colorize-code -charset utf-8 -hide Podge -hide Pervasives'"
