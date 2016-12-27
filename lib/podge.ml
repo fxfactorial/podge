@@ -253,15 +253,23 @@ module Yojson = struct
 
 end
 
+(** Helper functions for using Tyxml *)
 module Html5 = struct
 
+  (** Print to stdout a tag *)
   let show_tag e =
-    Html5.P.print_list print_string [e]
+    let format =
+      Format.formatter_of_out_channel Pervasives.stdout
+    in
+    Tyxml.Xml.pp () format e
 
+  (** Convert a Tyxml into a string *)
   let to_string e =
     let cont = Buffer.create 1024 in
-    let func = Buffer.add_string cont in
-    Html5.P.print_list func [e];
+    let format =
+      Format.formatter_of_buffer cont
+    in
+    Tyxml.Xml.pp () format e;
     Buffer.contents cont
 
 end
