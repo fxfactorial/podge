@@ -43,7 +43,7 @@ module Math = struct
       let sum_xy = ref 0.0 in
       let sum_sq_v_x = ref 0.0 in
       let sum_sq_v_y = ref 0.0 in
-      let zipped = List.combine (Array.to_list xs) (Array.to_list ys) in
+      let zipped = L.combine (Array.to_list xs) (Array.to_list ys) in
       List.iter begin fun (i_x, i_y) ->
         let var_x = i_x -. mean_x in
         let var_y = i_y -. mean_y in
@@ -200,11 +200,6 @@ module Infix = struct
   let (<--->) i j = Math.range ~inclusive:true ~from:i j
 end
 
-(* Shamelessly dumping Stringext *)
-module String = struct
-  include Stringext
-end
-
 (** Pretty printing of json and updating *)
 module Yojson = struct
 
@@ -265,7 +260,6 @@ end
 
 module Unix : sig
 
-  type exn += Error of string
   val read_process_output : string -> string list
   val read_lines : string -> string list
   val read_all : string -> string
@@ -280,28 +274,18 @@ module Unix : sig
 
 end = struct
 
-  type exn += Error of string
-
   let exhaust ic =
     let all_input = ref [] in
-    try
-      while true do
-        all_input := input_line ic :: !all_input;
-      done;
-      []
-    with
-      End_of_file ->
-      close_in ic;
-      List.rev !all_input
+    (try while true do all_input := input_line ic :: !all_input; done
+     with End_of_file -> ());
+    close_in ic;
+    List.rev !all_input
 
-  let read_process_output p =
-    Unix.open_process_in p |> exhaust
+  let read_process_output p = Unix.open_process_in p |> exhaust
 
-  let read_lines path =
-    open_in path |> exhaust
+  let read_lines path = open_in path |> exhaust
 
-  let read_all path =
-    open_in path |> exhaust |> S.concat ""
+  let read_all path = open_in path |> exhaust |> S.concat ""
 
   (** Get a char from the terminal without waiting for the return key *)
   let get_one_char () =
@@ -320,11 +304,11 @@ end = struct
 
   let daemonize () = match Unix.fork () with
     | pid ->
-      if pid < 0 then raise (Error "Couldn't fork correctly")
+      if pid < 0 then raise (Failure "Couldn't fork correctly")
       else if pid > 0 then exit (-1)
       else begin match Unix.setsid () with
         | sid ->
-          if sid < 0 then raise (Error "Issue with setsid")
+          if sid < 0 then raise (Failure "Issue with setsid")
           else if sid > 0 then exit (-1)
           else begin
             Unix.umask 0 |> fun _ ->
@@ -466,138 +450,113 @@ end
 
 module Web : sig
 
-  (** Takes a URL and gives back a tuple of status line, headers alist
-      and an optional body. Only works with HTTP *)
-  val get : string -> string * (string * string) list * bytes option
+  (** Takes a HTTP url and gives back an optional pair of a list of
+      headers and the body *)
+  type error_t = Can_only_handle_http
+
+  val get: ?trim_body:bool -> string -> (string list * string, error_t) result
 
   (** Takes a route and a bytes for body and does a PUT, no checking
       of HTTP errors *)
-  val put : string -> bytes -> unit
+  (* val post : string -> bytes -> bytes option *)
 
 end = struct
 
-  let socket_for_addr (addr, addr_t, port) =
-    let s = U.(socket addr_t U.SOCK_STREAM 0) in
-    U.connect s (U.ADDR_INET (addr, port));
-    s
+  let (>>=) x (f: 'a -> 'b option) = match x with None -> None | Some d -> (f d)
 
-  let produce_headers sock =
-    let buff = Buffer.create 1024 in
-    let prev = Bytes.create 1 in
-    let next = Bytes.create 1 in
-    let _ = U.read sock prev 0 1 in
-    Buffer.add_bytes buff prev;
-    let module Stop = struct exception Read end in
+  let address host =
+    U.(ADDR_INET ((gethostbyname host).h_addr_list.(0), 80))
+
+  let really_output out_chan message =
+    output_bytes out_chan message; flush out_chan
+
+  let read_all in_chan =
+    let buff = Buffer.create 4096 in
+    (try while true do input_char in_chan |> Buffer.add_char buff done
+     with End_of_file -> ());
+    buff |> Buffer.to_bytes
+
+  let headers_and_body ?(trim_body=true) http_resp =
+    let starting_point = ref 2 in
+    let end_len = Bytes.length http_resp in
+    let last_two = Bytes.create 2 in
+    Bytes.set last_two 0 '\x00'; Bytes.set last_two 1 '\x00';
+    let current = Bytes.create 2 in
     (try
-       while true do
-         let _ = U.read sock next 0 1 in
-         if (prev = "\n" && next = "\r") ||
-            (prev = "\n" && next = "\n")
-         then raise Stop.Read;
-         Bytes.(set prev 0 (get next 0));
-         Buffer.add_bytes buff next
-       done
-     with
-       Stop.Read -> ());
-    (* Read one more to prepare for reading body *)
-    U.read sock prev 0 1 |> ignore;
-    let status::headers =
-      Buffer.to_bytes buff
-      |> S.split_on_char '\n'
-      |> L.map S.trim
+       while !starting_point < end_len - 2 do Bytes.(
+           set last_two 0 (get http_resp (!starting_point - 2));
+           set last_two 1 (get http_resp (!starting_point - 1));
+           set current 0 (get http_resp (!starting_point));
+           set current 1 (get http_resp (!starting_point + 1));
+           if last_two = "\r\n" && current = "\r\n" then raise Exit;
+           incr starting_point
+         )
+       done;
+     with Exit -> ());
+    let leftover = end_len - !starting_point in
+    let headers =
+      Bytes.sub http_resp 0 !starting_point
+      |> String.split_on_char '\n'
+      |> L.map String.trim
+      |> L.filter (( <> ) "")
     in
-    let table =
-      L.map (fun line ->
-          match S.split_on_char ':' line with
-          | key::value::[] -> (key, S.trim value)
-          | key::value::rest ->
-            (key, S.concat "" (value :: rest) |> S.trim)
-          | _ -> (line, "")
-        ) headers
-      |> L.filter (fun (key, _) -> key <> "")
-      |> L.map (fun (key, v) -> (S.lowercase_ascii key, v))
-    in
-    (status, table)
+    (headers,
+     Bytes.sub http_resp !starting_point leftover
+     |> fun body -> if trim_body then S.trim body else body)
 
-  let socket_from_route route =
-    let s = ref (Uri.of_string route) in
-    let http_port = match Uri.scheme !s with
-      | None -> s := "http://" ^ route |> Uri.of_string; 80
-      | Some s when s = "http" -> 80
-      | Some s when s = "https" ->
-        raise (Invalid_argument "HTTPS not implemented")
-      | _ -> raise (Invalid_argument "Invalid given protocol, \
-                                      can only handle http(s)")
-    in
-    let pair = U.(
-        try
-          let entry =
-            gethostbyname (Uri.host_with_default !s)
-          in
-          entry.h_addr_list.(0), entry.h_addrtype, http_port
-        with Invalid_argument _ ->
-          raise (Invalid_argument "Make sure host name is valid")
-      )
-    in
-    socket_for_addr pair
+  type error_t = Can_only_handle_http
 
-  let put route body =
-    let sock = socket_from_route route in
-    let write_this =
-      P.sprintf "PUT %s HTTP/1.1\r\n\
-                 Content-length: %d\r\n\r\n
-                 %s"
-        (Uri.(path (of_string route)))
-        (Bytes.length body)
-        body
-    in
-    let written = ref 0 in
-    while !written <> (Bytes.length write_this) do
-      let did_write =
-        U.send sock write_this 0 (Bytes.length write_this) []
-      in
-      written := !written + did_write
-    done
-
-  (* Only does very simple HTTP GET requests *)
-  let get route =
-    let s = ref (Uri.of_string route) in
-    let sock = socket_from_route route in
-    let write_this =
-      P.sprintf "GET %s HTTP/1.1 \r\nHost: %s\r\n\r\n\r\n"
-        (match Uri.path !s with "" -> "/" | s -> s)
-        (Uri.host_with_default ~default:"" !s)
-    in
-    let written = ref 0 in
-    while !written <> (Bytes.length write_this) do
-      let did_write =
-        U.send sock write_this 0 (Bytes.length write_this) []
-      in
-      written := !written + did_write
-    done;
-
-    let (status_line, headers) = produce_headers sock in
-
-    let content_length =
-      try
-        let (_, len) =
-          L.find (fun (key, _) -> key = "content-length") headers
+  let get ?(trim_body=true) route =
+    let error_reason = ref Can_only_handle_http in
+    let uri = Uri.of_string route in
+    let request = Uri.scheme uri >>= fun s ->
+      match s with
+      | x when x <> "http" -> None
+      | _ -> Uri.host uri >>= fun host ->
+        let (in_chan, out_chan) = U.open_connection (address host) in
+        U.(setsockopt (descr_of_out_channel out_chan) TCP_NODELAY true);
+        let msg host =
+          P.sprintf
+            "GET / HTTP/1.1\r\n\
+             Host:%s\r\n\
+             User-Agent: OCaml - Podge\r\n\
+             Connection: close\r\n\r\n" host
         in
-        Some len
-      with Not_found ->
-        None
+        really_output out_chan (msg host);
+        let all = read_all in_chan in
+        (try close_in in_chan; close_out out_chan with _ -> ());
+        Some (headers_and_body ~trim_body all)
     in
-    match content_length with
-    | None -> (status_line, headers, None)
-    | Some len ->
-      let content_length = int_of_string len in
-      let buff = Bytes.create content_length in
-      let did_read = ref 0 in
-      while !did_read <> content_length do
-        let real_read = U.read sock buff 0 content_length in
-        did_read := !did_read + real_read
-      done;
-      (status_line, headers, Some buff)
+    match request with
+    | None -> Error !error_reason
+    | Some x -> Ok x
+
+  let post route body =
+    let uri = Uri.of_string route in
+    Uri.scheme uri >>= fun s ->
+    match s with
+    | x when x <> "http" -> None
+    | _ -> Uri.host uri >>= fun host ->
+      let (in_chan, out_chan) = U.open_connection (address host) in
+      let fd = U.descr_of_in_channel in_chan in
+      let fd_ = U.descr_of_out_channel out_chan in
+
+      U.setsockopt fd U.TCP_NODELAY true;
+      U.setsockopt fd_ U.TCP_NODELAY true;
+      let post_request =
+        P.sprintf "POST %s HTTP/1.1\r\n\
+                   Host:%s\r\n\
+                   Content-length: %d\r\n\
+                   User-Agent: OCaml - Podge\r\n\
+                   Connection: close\r\n\r\n%s"
+          (Uri.path_and_query uri)
+          host
+          (Bytes.length body)
+          body
+      in
+      really_output out_chan post_request;
+      let reply = read_all in_chan in
+      Some reply
 
 end
 
@@ -631,12 +590,12 @@ end = struct
 
 end
 
-module ANSITerminal = struct
+(* module ANSITerminal = struct *)
 
-  (** Create a colorized message, presumably for a log message *)
-  let colored_message ?(t_color=T.Yellow) ?(m_color=T.Blue) ?(with_time=true) str =
-    let just_time = T.sprintf [T.Foreground t_color] "%s " (Unix.time_now ()) in
-    let just_message = T.sprintf [T.Foreground m_color] "%s" str in
-    if with_time then just_time ^ just_message else just_message
+(*   (\** Create a colorized message, presumably for a log message *\) *)
+(*   let colored_message ?(t_color=T.Yellow) ?(m_color=T.Blue) ?(with_time=true) str = *)
+(*     let just_time = T.sprintf [T.Foreground t_color] "%s " (Unix.time_now ()) in *)
+(*     let just_message = T.sprintf [T.Foreground m_color] "%s" str in *)
+(*     if with_time then just_time ^ just_message else just_message *)
 
-end
+(* end *)
