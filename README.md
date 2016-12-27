@@ -10,40 +10,32 @@ modules like the Math module.
 to do a quick HTTP get request for JSON data and subsequently play
 with the JSON.
 
+See simple documentation [online](http://hyegar.com/podge/)
+
 # Examples
 
-These are all self-contained and tested to work.
+You can install with 
+```shell
+$ opam install podge
+```
+And use it in your projects with the `podge` opam package, 
+
+```shell
+$ ocamlfind ocaml{opt,c} -package podge code.ml -o Example_program
+```
 
 ## Requests
 
-Program that does a `HTTP` get request for Bitcoin data via [Bitstamp's](https://www.bitstamp.net/api/)
-public REST API.
+Simple HTTP only requests, HTTPs will be added later
 
 ```ocaml
-(* This file is named show_query.ml *)
-#require "podge"
-
 let () =
-  Podge.Web.get Sys.argv.(1)
-  |> Podge.Y.Util.member "body"
-  |> Podge.Y.Util.to_string
-  |> Podge.Yojson.show_pretty_of_string
-```
-
-And you can run it from the command line with: 
-
-```shell
-$ utop show_query.ml https://www.bitstamp.net/api/ticker/
-{
-  "high": "266.44",
-  "last": "261.47",
-  "timestamp": "1439693570",
-  "bid": "261.31",
-  "vwap": "263.89",
-  "volume": "6179.95060788",
-  "low": "259.18",
-  "ask": "261.47"
-}
+  match Podge.Web.get "http://hyegar.com" with
+  | Ok (status_line, headers, body) ->
+    Printf.printf "Status_line: %s\n" status_line;
+    print_endline body
+  | Error _ ->
+    print_endline "Error"
 ```
 
 ## Xml
