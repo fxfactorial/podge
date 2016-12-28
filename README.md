@@ -26,7 +26,8 @@ $ ocamlfind ocaml{opt,c} -package podge code.ml -o Example_program
 
 ## Requests
 
-Simple HTTP only requests, HTTPs will be added later
+Simple HTTP only requests will work, HTTPs will be added later but you
+can still try HTTPS based requests.
 
 ```ocaml
 let () =

@@ -487,11 +487,14 @@ module Web : sig
   type reply = (string * string list * string, error_t) result
 
   (** Takes a HTTP url and gives back an optional pair of a list of
-      headers and the body *)
+      headers and the body. HTTPS is accepted but warning it is not
+      implemented so HTTPS servers may reject your request *)
   val get: ?trim_body:bool -> string -> reply
 
   (** Takes a route and a bytes for body and does a PUT, no checking
-      of HTTP errors *)
+      of HTTP errors, like get HTTPS requests will be accepted by
+      post but it may be rejected by an HTTPS server since HTTPS is
+      not currently implemented.*)
   val post :  ?trim_reply:bool -> ?post_body:string -> string -> reply
 
 end = struct
@@ -551,7 +554,7 @@ end = struct
     let uri = Uri.of_string route in
     let request = Uri.scheme uri >>= fun s ->
       match s with
-      | x when x <> "http" -> None
+      | x when x <> "http" && x <> "https" -> None
       | _ -> Uri.host uri >>= fun host ->
         (try Some (Originals.U.open_connection (address host))
          with
@@ -579,7 +582,7 @@ end = struct
     let request =
       Uri.scheme uri >>= fun s ->
       match s with
-      | x when x <> "http" -> None
+      | x when x <> "http" && x <> "https" -> None
       | _ -> Uri.host uri >>= fun host ->
         let (in_chan, out_chan) = Originals.U.open_connection (address host) in
         let fd_ = Originals.U.descr_of_out_channel out_chan in
