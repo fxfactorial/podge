@@ -81,7 +81,7 @@ module Math = struct
   let bit_string_of_int num =
     let rec helper a_num accum = match a_num with
       | 0 -> accum
-      | x -> string_of_int (a_num mod 2) :: helper (a_num / 2) accum
+      | _x -> string_of_int (a_num mod 2) :: helper (a_num / 2) accum
     in
     helper num [] |> List.rev |> Originals.S.concat ""
 
@@ -231,7 +231,7 @@ module Yojson = struct
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
     let g = List.map begin function
-        | (this_key, inner) when this_key = key -> updated := true; (this_key, new_value)
+        | (this_key, _inner) when this_key = key -> updated := true; (this_key, new_value)
         | otherwise -> otherwise
       end
         as_obj
@@ -531,14 +531,15 @@ end = struct
            set last_two 1 (get http_resp (!starting_point - 1));
            set current 0 (get http_resp (!starting_point));
            set current 1 (get http_resp (!starting_point + 1));
-           if last_two = "\r\n" && current = "\r\n" then raise Exit;
+           let cr = Bytes.of_string "\r\n" in
+           if last_two = cr && current = cr then raise Exit;
            incr starting_point
          )
        done;
      with Exit -> ());
     let leftover = end_len - !starting_point in
     let status_line::headers = Originals.(
-        Bytes.sub http_resp 0 !starting_point
+        Bytes.sub_string http_resp 0 !starting_point
         |> S.split_on_char '\n'
         |> L.map S.trim
         |> L.filter (( <> ) "")
@@ -547,7 +548,7 @@ end = struct
     (status_line,
      headers,
      Bytes.sub http_resp !starting_point leftover
-     |> fun body -> if trim_body then Originals.S.trim body else body)
+     |> fun body -> if trim_body then Bytes.trim body else body)
 
   let get ?(trim_body=true) route =
     let error_reason = ref Can_only_handle_http in
@@ -569,12 +570,12 @@ end = struct
              User-Agent: OCaml - Podge\r\n\
              Connection: close\r\n\r\n" host
         in
-        really_output out_chan (msg host);
+        really_output out_chan (Bytes.of_string(msg host));
         let all = read_all in_chan in
         (try close_in in_chan; close_out out_chan with _ -> ());
         Some (headers_and_body ~trim_body all)
     in
-    match request with None -> Error !error_reason | Some x -> Ok x
+    match request with None -> Error !error_reason | Some (a,b,c) -> Ok (a,b,Bytes.to_string c)
 
   let post ?(trim_reply=true) ?post_body route =
     let uri = Uri.of_string route in
@@ -589,6 +590,7 @@ end = struct
         Originals.(U.setsockopt fd_ U.TCP_NODELAY true);
         let post_request = match post_body with
           | Some b ->
+            let b' = Bytes.of_string b in
             Originals.P.sprintf "POST %s HTTP/1.1\r\n\
                                  Host:%s\r\n\
                                  Content-length: %d\r\n\
@@ -596,8 +598,8 @@ end = struct
                                  Connection: close\r\n\r\n%s"
               (Uri.path_and_query uri)
               host
-              (Bytes.length b)
-              b
+              (Bytes.length b')
+              (b)
           | None ->
             Originals.P.sprintf "POST %s HTTP/1.1\r\n\
                                  Host:%s\r\n\
@@ -606,13 +608,12 @@ end = struct
               (Uri.path_and_query uri)
               host
         in
-        really_output out_chan post_request;
+        really_output out_chan (Bytes.of_string post_request);
         let reply = read_all in_chan in
         (try close_in in_chan; close_out out_chan with _ -> ());
         Some (headers_and_body ~trim_body:trim_reply reply)
     in
-    match request with None -> Error !error_reason | Some x -> Ok x
-
+    match request with None -> Error !error_reason | Some (a,b,c) -> Ok (a, b, Bytes.to_string c)
 end
 
 (** Simple querying for Xml nodes, keys order matters *)
