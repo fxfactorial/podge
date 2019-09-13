@@ -1,0 +1,6 @@
+(library
+  (name podge)
+  (public_name podge)
+  (modules podge)
+  (wrapped false)
+  (libraries yojson cohttp tyxml unix re.pcre ezxmlm ANSITerminal astring))

@@ -73,7 +73,7 @@ module Math = struct
     | 0 -> 1
     | 1 -> base
     | n ->
-      let b = pow base (n / 2) in
+      let b = pow ~base:base (n / 2) in
       b * b * (if n mod 2 = 0 then 1 else base)
 
   let log2 x = (log x ) /. (log 2.)
@@ -192,18 +192,20 @@ module Math = struct
     init_aux n []
 
   let combination n m =
-    let g (k, r) = init_with_f (fun i -> k + pow 2 (n - i - 1), i) r in
+    let g (k, r) = init_with_f ~f:(fun i -> k + pow ~base:2 (n - i - 1), i) r in
     let rec aux m xs =
       if m = 1 then List.map fst xs
       else aux (m - 1) (List.map g xs |> List.concat)
     in
-    aux m (init_with_f (fun i -> pow 2 i, n - i - 1) n)
+    aux m (init_with_f ~f:(fun i -> pow ~base:2 i, n - i - 1) n)
 
 end
 
 module Infix = struct
+
   (** See Podge.Math.range for documentation. *)
   let (<-->) i j = Math.range ~from:i j
+
   (** See Podge.Math.range for documentation. *)
   let (<--->) i j = Math.range ~inclusive:true ~from:i j
 end
@@ -227,7 +229,7 @@ module Yojson = struct
     |> print_endline
 
   (** Update a value for a given key *)
-  let update ~key ~new_value j : (did_update * Yojson.Basic.json) =
+  let update ~key ~new_value j : (did_update * Yojson.Basic.t) =
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
     let g = List.map begin function
@@ -239,7 +241,7 @@ module Yojson = struct
     if !updated then (`Updated, `Assoc g) else (`No_update, `Assoc g)
 
   (** Remove a key-value pair *)
-  let remove ~key j : (did_update * Yojson.Basic.json) =
+  let remove ~key j : (did_update * Yojson.Basic.t) =
     let updated = ref false in
     let as_obj = Yojson.Basic.Util.to_assoc j in
     let g = List.fold_left begin fun accum ((this_key, _) as key_value) ->
@@ -259,7 +261,7 @@ module Html5 = struct
   (** Print to stdout a tag *)
   let show_tag e =
     let format =
-      Format.formatter_of_out_channel Pervasives.stdout
+      Format.formatter_of_out_channel Stdlib.stdout
     in
     Tyxml.Xml.pp () format e
 
@@ -443,15 +445,15 @@ module List = struct
 
   let rec drop ~n xs =
     if n <= 0 || xs = [] then xs
-    else drop (n - 1) (List.tl xs)
+    else drop ~n:(n - 1) (List.tl xs)
 
   let equal_parts ~segs l =
     let this_much = (List.length l) / segs in
     let rec helper accum rest = match rest with
       | [] -> accum
       | rest ->
-        let pull = take this_much rest in
-        let remaining = drop this_much rest in
+        let pull = take ~n:this_much rest in
+        let remaining = drop ~n:this_much rest in
         if List.length remaining < this_much
         then (remaining @ pull) :: helper accum []
         else pull :: helper accum remaining
@@ -538,12 +540,14 @@ end = struct
        done;
      with Exit -> ());
     let leftover = end_len - !starting_point in
-    let status_line::headers = Originals.(
+    let status_line, headers = match Originals.(
         Bytes.sub_string http_resp 0 !starting_point
         |> S.split_on_char '\n'
         |> L.map S.trim
         |> L.filter (( <> ) "")
-      )
+      ) with
+      | [] -> failwith "headers_and_body"
+      | s::h -> s, h
     in
     (status_line,
      headers,
